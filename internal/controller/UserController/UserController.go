@@ -39,7 +39,7 @@ func (userController *UserController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/all", userController.GetListUser).Methods("GET")
 	r.HandleFunc("/user/{id}", userController.DeleteUserById).Methods("DELETE")
 	r.HandleFunc("/search", userController.SearchUser).Methods("POST")
-
+	r.HandleFunc("/update/{id}", userController.UpdateUser).Methods("PUT")
 }
 func (userController *UserController) UserRegister(write http.ResponseWriter, Request *http.Request) {
 	var Body request.UserRequest
@@ -108,6 +108,28 @@ func (userController *UserController) DeleteUserById(write http.ResponseWriter, 
 	}
 	resp, err := userController.UserService.DeleteUserById(userId)
 	if err != nil {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(resp)
+}
+func (userController *UserController) UpdateUser(write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	userId := strings.Split(url, "/")[3]
+	if userId == "" {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	var UserRequest request.UserRequest
+	err := json.NewDecoder(Request.Body).Decode(&UserRequest)
+	if err != nil {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	resp, errs := userController.UserService.UpdateUser(UserRequest, userId)
+	if errs != nil {
 		http.Error(write, "failel To call Api", http.StatusBadRequest)
 		return
 	}

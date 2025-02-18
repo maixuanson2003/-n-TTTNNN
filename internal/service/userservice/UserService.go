@@ -3,6 +3,7 @@ package userservice
 import (
 	"errors"
 	"log"
+	"regexp"
 	constants "ten_module/internal/Constant"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
@@ -26,7 +27,7 @@ type Interface interface {
 	GetListUser() ([]response.UserResponse, error)
 	GetUserById(Id string) ([]response.UserResponse, error)
 	SearchUser(Name string, Age int, Email string, Address string, Role string, Gender string) ([]response.UserResponse, error)
-	UpdateUser(UserReq request.UserRequest) (MessageResponse, error)
+	UpdateUser(UserReq request.UserRequest, Id string) (MessageResponse, error)
 	DeleteUserById(Id int) (MessageResponse, error)
 }
 
@@ -137,5 +138,52 @@ func (service *UserService) DeleteUserById(Id string) (MessageResponse, error) {
 		Status:  "SUCCESS",
 		UserID:  Id,
 		Message: "Ok",
+	}, nil
+}
+func (service *UserService) UpdateUser(UserReq request.UserRequest, Id string) (MessageResponse, error) {
+	repo := service.UserRepo
+	User, checkFaild := repo.FindById(Id)
+	if checkFaild != nil {
+		return MessageResponse{
+			Status:  "FAILED",
+			UserID:  "s",
+			Message: "bad request",
+		}, checkFaild
+	}
+
+	Validate := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	if !Validate.MatchString(UserReq.Email) {
+		return MessageResponse{
+			Status:  "FAILED",
+			UserID:  "s",
+			Message: "not valid email",
+		}, errors.New("not valid email")
+	}
+	if len(UserReq.Phone) < 10 {
+		return MessageResponse{
+			Status:  "FAILED",
+			UserID:  "s",
+			Message: "not valid Phone Number",
+		}, errors.New("not valid Phone Number")
+	}
+	User.Phone = UserReq.Phone
+	User.Address = UserReq.Address
+	User.Age = UserReq.Age
+	User.Email = UserReq.Email
+	User.FullName = UserReq.FullName
+	User.Gender = UserReq.Gender
+	IsFaildToUpdate := repo.Update(User, Id)
+	if IsFaildToUpdate != nil {
+		return MessageResponse{
+			Status:  "FAILED",
+			UserID:  Id,
+			Message: "Update Faild",
+		}, IsFaildToUpdate
+
+	}
+	return MessageResponse{
+		Status:  "Success",
+		UserID:  Id,
+		Message: "Update Success",
 	}, nil
 }

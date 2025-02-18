@@ -39,10 +39,10 @@ func (instance *UserRepository) FindAll() ([]entity.User, error) {
 	}
 	return User, nil
 }
-func (instance *UserRepository) FindById(Id int) (entity.User, error) {
+func (instance *UserRepository) FindById(Id string) (entity.User, error) {
 	Database := instance.DB
 	var User entity.User
-	err := Database.Preload("WatchHistory").First(&User, Id).Error
+	err := Database.Preload("WatchHistory").Where("id=?", Id).First(&User).Error
 	if err != nil {
 		return entity.User{}, err
 	}
@@ -50,26 +50,49 @@ func (instance *UserRepository) FindById(Id int) (entity.User, error) {
 }
 func (instance *UserRepository) Create(User entity.User) error {
 	Database := instance.DB
-	err := Database.Create(&User).Error
-	if err != nil {
-		log.Print(err)
-		return err
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Create(&User).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if errs != nil {
+		log.Print(errs)
+		return errs
 	}
 	return nil
 }
-func (instance *UserRepository) Update(User entity.User) error {
+func (instance *UserRepository) Update(User entity.User, id string) error {
 	Database := instance.DB
-	err := Database.Save(&User).Error
-	if err != nil {
-		log.Print(err)
-		return err
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Where("id=?", id).Save(&User).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if errs != nil {
+		log.Print(errs)
+		return errs
 	}
 	return nil
 }
 func (instance *UserRepository) DeleteById(Id string) error {
 	Database := instance.DB
-	Database.Where("user_id= ?", Id).Delete(&entity.WatchHistory{})
-	err := Database.Where("id = ?", Id).Delete(&entity.User{}).Error
+	err := Database.Transaction(func(tx *gorm.DB) error {
+		ErrorDeleteRecord := Database.Where("user_id= ?", Id).Delete(&entity.WatchHistory{}).Error
+		if ErrorDeleteRecord != nil {
+			return ErrorDeleteRecord
+
+		}
+		ErrorFinalDelete := Database.Where("id = ?", Id).Delete(&entity.User{}).Error
+		if ErrorFinalDelete != nil {
+			return ErrorFinalDelete
+		}
+		return nil
+	})
 	if err != nil {
 		log.Print(err)
 		return err
@@ -79,11 +102,16 @@ func (instance *UserRepository) DeleteById(Id string) error {
 }
 func (instance *UserRepository) DeleteAll(User []entity.User) error {
 	Database := instance.DB
-
-	err := Database.Delete(&User).Error
-	if err != nil {
-		log.Print(err)
-		return err
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Delete(&User).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if errs != nil {
+		log.Print(errs)
+		return errs
 	}
 	return nil
 }
