@@ -3,6 +3,8 @@ package UserController
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/repository"
 	"ten_module/internal/service/userservice"
@@ -34,6 +36,9 @@ func GetUserController(Database *gorm.DB) UserController {
 }
 func (userController *UserController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/register", userController.UserRegister).Methods("POST")
+	r.HandleFunc("/all", userController.GetListUser).Methods("GET")
+	r.HandleFunc("/user/{id}", userController.DeleteUserById).Methods("DELETE")
+	r.HandleFunc("/search", userController.SearchUser).Methods("POST")
 
 }
 func (userController *UserController) UserRegister(write http.ResponseWriter, Request *http.Request) {
@@ -53,4 +58,60 @@ func (userController *UserController) UserRegister(write http.ResponseWriter, Re
 	write.WriteHeader(http.StatusOK)
 	json.NewEncoder(write).Encode(Resp)
 
+}
+func (userController *UserController) GetListUser(write http.ResponseWriter, Request *http.Request) {
+	Resp, err := userController.UserService.GetListUser()
+	if err != nil {
+		http.Error(write, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(Resp)
+}
+func (userController *UserController) SearchUser(write http.ResponseWriter, Request *http.Request) {
+	QueryParam := Request.URL.Query()
+	// Get Queryparam
+	Name := QueryParam.Get("fullname")
+	Age := QueryParam.Get("age")
+	var age int
+	if Age == "" {
+		age = 0
+	} else {
+		result, errs := strconv.Atoi(Age)
+		if errs != nil {
+			http.Error(write, "Invalid request payload", http.StatusBadRequest)
+			return
+		}
+		age = result
+	}
+	Email := QueryParam.Get("email")
+	Address := QueryParam.Get("address")
+	Role := QueryParam.Get("role")
+	Gender := QueryParam.Get("gender")
+	//Get response call func SearchUser
+	Resp, errs := userController.UserService.SearchUser(Name, age, Email, Address, Role, Gender)
+	if errs != nil {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(Resp)
+}
+func (userController *UserController) DeleteUserById(write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	userId := strings.Split(url, "/")[3]
+	if userId == "" {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	resp, err := userController.UserService.DeleteUserById(userId)
+	if err != nil {
+		http.Error(write, "failel To call Api", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(resp)
 }

@@ -19,11 +19,12 @@ type UserService struct {
 type MessageResponse struct {
 	UserID  string
 	Message string
-	status  string
+	Status  string
 }
 type Interface interface {
 	UserRegister(UserReq request.UserRequest) (MessageResponse, error)
 	GetListUser() ([]response.UserResponse, error)
+	GetUserById(Id string) ([]response.UserResponse, error)
 	SearchUser(Name string, Age int, Email string, Address string, Role string, Gender string) ([]response.UserResponse, error)
 	UpdateUser(UserReq request.UserRequest) (MessageResponse, error)
 	DeleteUserById(Id int) (MessageResponse, error)
@@ -72,7 +73,7 @@ func (service *UserService) UserRegister(UserReq request.UserRequest) (MessageRe
 		return MessageResponse{}, err
 	}
 	return MessageResponse{
-		status:  "SUCCESS",
+		Status:  "SUCCESS",
 		UserID:  User.ID,
 		Message: "Ok",
 	}, nil
@@ -98,4 +99,43 @@ func (service *UserService) GetListUser() ([]response.UserResponse, error) {
 		ListUserRes = append(ListUserRes, Users)
 	}
 	return ListUserRes, nil
+}
+func (service *UserService) SearchUser(Name string, Age int, Email string, Address string, Role string, Gender string) ([]response.UserResponse, error) {
+	repo := service.UserRepo
+	ListUser, err := repo.GetUserQuery(Name, Age, Email, Address, Role, Gender)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	var ListUserRes []response.UserResponse
+	for _, user := range ListUser {
+		Users := response.UserResponse{
+			Phone:    user.Phone,
+			FullName: user.FullName,
+			Email:    user.Email,
+			Address:  user.Address,
+			Gender:   user.Gender,
+			Age:      user.Age,
+			Role:     user.Role,
+		}
+		ListUserRes = append(ListUserRes, Users)
+	}
+	return ListUserRes, nil
+}
+func (service *UserService) DeleteUserById(Id string) (MessageResponse, error) {
+	repo := service.UserRepo
+	err := repo.DeleteById(Id)
+	if err != nil {
+		return MessageResponse{
+			Status:  "Fail",
+			UserID:  Id,
+			Message: "Ok",
+		}, err
+
+	}
+	return MessageResponse{
+		Status:  "SUCCESS",
+		UserID:  Id,
+		Message: "Ok",
+	}, nil
 }

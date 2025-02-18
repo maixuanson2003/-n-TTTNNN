@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"log"
 	database "ten_module/Database"
 	entity "ten_module/internal/Entity"
@@ -41,7 +42,7 @@ func (instance *UserRepository) FindAll() ([]entity.User, error) {
 func (instance *UserRepository) FindById(Id int) (entity.User, error) {
 	Database := instance.DB
 	var User entity.User
-	err := Database.First(&User, Id).Error
+	err := Database.Preload("WatchHistory").First(&User, Id).Error
 	if err != nil {
 		return entity.User{}, err
 	}
@@ -65,9 +66,10 @@ func (instance *UserRepository) Update(User entity.User) error {
 	}
 	return nil
 }
-func (instance *UserRepository) DeleteById(Id int) error {
+func (instance *UserRepository) DeleteById(Id string) error {
 	Database := instance.DB
-	err := Database.Delete(&entity.User{}, Id).Error
+	Database.Where("user_id= ?", Id).Delete(&entity.WatchHistory{})
+	err := Database.Where("id = ?", Id).Delete(&entity.User{}).Error
 	if err != nil {
 		log.Print(err)
 		return err
@@ -77,10 +79,41 @@ func (instance *UserRepository) DeleteById(Id int) error {
 }
 func (instance *UserRepository) DeleteAll(User []entity.User) error {
 	Database := instance.DB
+
 	err := Database.Delete(&User).Error
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 	return nil
+}
+func (instance *UserRepository) GetUserQuery(Name string, Age int, Email string, Address string, Role string, Gender string) ([]entity.User, error) {
+	Database := instance.DB
+	var User []entity.User
+	Query := map[string]interface{}{}
+	if Name != "" {
+		Query["full_name"] = Name
+
+	}
+	if Age > 0 {
+		Query["age"] = Age
+	}
+	if Email != "" {
+		Query["email"] = Email
+	}
+	if Address != "" {
+		Query["address"] = Address
+	}
+	if Role != "" {
+		Query["role"] = Role
+	}
+	if Gender != "" {
+		Query["gender"] = Gender
+	}
+	fmt.Print(Query)
+	err := Database.Where(Query).Find(&User).Error
+	if err != nil {
+		return nil, err
+	}
+	return User, nil
 }
