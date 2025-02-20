@@ -25,10 +25,10 @@ type MessageResponse struct {
 type Interface interface {
 	UserRegister(UserReq request.UserRequest) (MessageResponse, error)
 	GetListUser() ([]response.UserResponse, error)
-	GetUserById(Id string) ([]response.UserResponse, error)
+	GetUserById(Id string) (response.UserResponse, error)
 	SearchUser(Name string, Age int, Email string, Address string, Role string, Gender string) ([]response.UserResponse, error)
 	UpdateUser(UserReq request.UserRequest, Id string) (MessageResponse, error)
-	DeleteUserById(Id int) (MessageResponse, error)
+	DeleteUserById(Id string) (MessageResponse, error)
 }
 
 var UserServe *UserService
@@ -43,7 +43,31 @@ func InitUserServ() {
 		UserRepo: repository.UserRepo,
 	}
 }
-
+func UserReqMapToUserEntity(UserReq request.UserRequest, Byte []byte) entity.User {
+	return entity.User{
+		ID:       uuid.NewString(),
+		Username: UserReq.Username,
+		Password: string(Byte),
+		FullName: UserReq.FullName,
+		Phone:    UserReq.Phone,
+		Email:    UserReq.Email,
+		Address:  UserReq.Address,
+		Gender:   UserReq.Gender,
+		Age:      UserReq.Age,
+		Role:     string(constants.USER),
+	}
+}
+func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
+	return response.UserResponse{
+		Phone:    user.Phone,
+		FullName: user.FullName,
+		Email:    user.Email,
+		Address:  user.Address,
+		Gender:   user.Gender,
+		Age:      user.Age,
+		Role:     user.Role,
+	}
+}
 func (service *UserService) UserRegister(UserReq request.UserRequest) (MessageResponse, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(UserReq.Password), 14)
 	if err != nil {
@@ -56,18 +80,7 @@ func (service *UserService) UserRegister(UserReq request.UserRequest) (MessageRe
 		log.Print(errors.New("not enough data"))
 		return MessageResponse{}, errors.New("not enough data")
 	}
-	User := entity.User{
-		ID:       uuid.NewString(),
-		Username: UserReq.Username,
-		Password: string(bytes),
-		FullName: UserReq.FullName,
-		Phone:    UserReq.Phone,
-		Email:    UserReq.Email,
-		Address:  UserReq.Address,
-		Gender:   UserReq.Gender,
-		Age:      UserReq.Age,
-		Role:     string(constants.USER),
-	}
+	User := UserReqMapToUserEntity(UserReq, bytes)
 	repo := service.UserRepo
 	errs := repo.Create(User)
 	if errs != nil {
@@ -88,15 +101,7 @@ func (service *UserService) GetListUser() ([]response.UserResponse, error) {
 	}
 	var ListUserRes []response.UserResponse
 	for _, user := range ListUser {
-		Users := response.UserResponse{
-			Phone:    user.Phone,
-			FullName: user.FullName,
-			Email:    user.Email,
-			Address:  user.Address,
-			Gender:   user.Gender,
-			Age:      user.Age,
-			Role:     user.Role,
-		}
+		Users := UserEntityMapToUserResponse(user)
 		ListUserRes = append(ListUserRes, Users)
 	}
 	return ListUserRes, nil
@@ -110,15 +115,7 @@ func (service *UserService) SearchUser(Name string, Age int, Email string, Addre
 	}
 	var ListUserRes []response.UserResponse
 	for _, user := range ListUser {
-		Users := response.UserResponse{
-			Phone:    user.Phone,
-			FullName: user.FullName,
-			Email:    user.Email,
-			Address:  user.Address,
-			Gender:   user.Gender,
-			Age:      user.Age,
-			Role:     user.Role,
-		}
+		Users := UserEntityMapToUserResponse(user)
 		ListUserRes = append(ListUserRes, Users)
 	}
 	return ListUserRes, nil
@@ -186,4 +183,13 @@ func (service *UserService) UpdateUser(UserReq request.UserRequest, Id string) (
 		UserID:  Id,
 		Message: "Update Success",
 	}, nil
+}
+func (service *UserService) GetUserById(Id string) (response.UserResponse, error) {
+	repo := service.UserRepo
+	User, checkFaild := repo.FindById(Id)
+	if checkFaild != nil {
+		return response.UserResponse{}, nil
+	}
+	UserResponse := UserEntityMapToUserResponse(User)
+	return UserResponse, nil
 }
