@@ -2,10 +2,9 @@ package entity
 
 import "time"
 
-type MovieResource struct {
+type SongType struct {
 	ID      int `gorm:"primaryKey;autoIncremen"`
-	Chapter string
-	Video   string
+	Type    string
 	CreatAt time.Time
-	MovieId int
+	Song    []Song `gorm:"many2many:Song_SongType;"`
 }

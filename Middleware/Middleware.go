@@ -10,10 +10,10 @@ type UseMiddleware struct {
 }
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
-var middleware *UseMiddleware
+var Middlewares *UseMiddleware
 
 func InitMiddleWare() {
-	middleware = &UseMiddleware{}
+	Middlewares = &UseMiddleware{}
 }
 func (middle *UseMiddleware) CheckToken() Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
@@ -44,12 +44,12 @@ func (middle *UseMiddleware) VerifyRole(RoleRequire []string) Middleware {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
-			checkRoleInToken := make(map[string]int)
-			for _, role := range Role {
-				checkRoleInToken[role]++
-			}
+			checkRoleInRequire := make(map[string]int)
 			for _, roleRequire := range RoleRequire {
-				_, checkExsits := checkRoleInToken[roleRequire]
+				checkRoleInRequire[roleRequire]++
+			}
+			for _, role := range Role {
+				_, checkExsits := checkRoleInRequire[role]
 				if !checkExsits {
 					http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 					return
@@ -59,7 +59,7 @@ func (middle *UseMiddleware) VerifyRole(RoleRequire []string) Middleware {
 		}
 	}
 }
-func (middle *UseMiddleware) chain(ApiFunc http.HandlerFunc, Middleware ...Middleware) http.HandlerFunc {
+func (middle *UseMiddleware) Chain(ApiFunc http.HandlerFunc, Middleware ...Middleware) http.HandlerFunc {
 	for _, check := range Middleware {
 		ApiFunc = check(ApiFunc)
 	}

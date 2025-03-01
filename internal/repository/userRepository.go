@@ -21,13 +21,14 @@ func InitUserRepo() {
 	}
 }
 
-type Interface interface {
+type UserRepoInterface interface {
 	FindAll() ([]entity.User, error)
 	FindById(Id int) (entity.User, error)
 	Create(User entity.User) error
-	Update(User entity.User) error
+	Update(User entity.User, id string) error
 	DeleteById(Id int) error
 	DeleteAll(User []entity.User) error
+	GetUserQuery(Name string, Age int, Email string, Address string, Role string, Gender string) ([]entity.User, error)
 }
 
 func (instance *UserRepository) FindAll() ([]entity.User, error) {
@@ -82,7 +83,7 @@ func (instance *UserRepository) Update(User entity.User, id string) error {
 func (instance *UserRepository) DeleteById(Id string) error {
 	Database := instance.DB
 	err := Database.Transaction(func(tx *gorm.DB) error {
-		ErrorDeleteRecord := Database.Where("user_id= ?", Id).Delete(&entity.WatchHistory{}).Error
+		ErrorDeleteRecord := Database.Where("user_id= ?", Id).Delete(&entity.ListenHistory{}).Error
 		if ErrorDeleteRecord != nil {
 			return ErrorDeleteRecord
 

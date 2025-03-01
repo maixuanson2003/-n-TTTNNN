@@ -18,18 +18,20 @@ func Init() {
 		return
 	}
 	Database = appDB
-
 }
 
 func MigrateDB(DB *gorm.DB) {
 	tables := []interface{}{
+		&entity.Album{},
+		&entity.PlayList{},
+		&entity.Review{},
+		&entity.Collection{},
 		&entity.User{},
-		&entity.Movie{},
-		&entity.MovieResource{},
-		&entity.MovieType{},
-		&entity.Acting{},
-		&entity.Quality{},
-		&entity.WatchHistory{},
+		&entity.Song{},
+		&entity.SongType{},
+		&entity.Artist{},
+		&entity.Country{},
+		&entity.ListenHistory{},
 	}
 	for _, table := range tables {
 		DB.AutoMigrate(table)

@@ -3,7 +3,7 @@ package authservice
 import (
 	"fmt"
 	"log"
-	config "ten_module/internal/Config"
+	Config "ten_module/internal/Config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -29,7 +29,7 @@ func Init() {
 	TokenUltils = &TokenHelper{}
 }
 
-var Env = config.GetEnvConfig()
+var Env = Config.GetEnvConfig()
 
 type TokenClaims struct {
 	username string

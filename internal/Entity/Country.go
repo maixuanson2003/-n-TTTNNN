@@ -2,9 +2,9 @@ package entity
 
 import "time"
 
-type Quality struct {
+type Country struct {
 	ID          int `gorm:"primaryKey;autoIncremen"`
 	QualityName string
 	CreateAt    time.Time
-	Movie       []Movie
+	Song        []Song
 }

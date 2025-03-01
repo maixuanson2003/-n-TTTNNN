@@ -1,10 +1,9 @@
-package entity
+package response
 
-type Acting struct {
+type ArtistResponse struct {
 	ID          int
 	Name        string
 	BirthDay    string
 	Description string
 	Country     string
-	Movie       []Movie `gorm:"many2many:Movie_Acting";`
 }

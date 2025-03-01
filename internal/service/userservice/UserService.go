@@ -54,7 +54,7 @@ func UserReqMapToUserEntity(UserReq request.UserRequest, Byte []byte) entity.Use
 		Address:  UserReq.Address,
 		Gender:   UserReq.Gender,
 		Age:      UserReq.Age,
-		Role:     string(constants.USER),
+		Role:     string(constants.ADMIN),
 	}
 }
 func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
