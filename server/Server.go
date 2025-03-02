@@ -31,7 +31,7 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
-		AllowedHeaders:   []string{"*"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Accept"},
 		Debug:            true,
 	})
 	handler := Cors.Handler(router)

@@ -3,7 +3,11 @@ package songcontroller
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	middleware "ten_module/Middleware"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/songservice"
@@ -26,6 +30,7 @@ func InitSongController() {
 }
 func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/song/create", Controller.CreateNewSong).Methods("POST")
+	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -56,5 +61,33 @@ func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(resp)
+
+}
+func (Controller *SongController) DownLoadSong(Write http.ResponseWriter, Req *http.Request) {
+	url := Req.URL.Path
+	fmt.Print("ssss")
+	GetSongId := strings.Split(url, "/")[3]
+	SongId, ErrorToConvertString := strconv.Atoi(GetSongId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	resp, errorToHandleDownLoad := Controller.songService.DownLoadSong(SongId)
+	fmt.Print("ssss")
+	if errorToHandleDownLoad != nil {
+		http.Error(Write, "failed to get download", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	defer resp.Resp.Body.Close()
+	Write.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", resp.NameSong))
+	Write.Header().Set("Content-Type", "audio/mpeg")
+	Write.Header().Set("Content-Transfer-Encoding", "binary")
+	_, errorToConvert := io.Copy(Write, resp.Resp.Body)
+	if errorToConvert != nil {
+		log.Print(errorToConvert)
+		return
+	}
 
 }
