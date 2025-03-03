@@ -24,7 +24,10 @@ type SongServiceInterface interface {
 	GetAllSong() ([]response.SongResponse, error)
 	CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error)
 	DownLoadSong(Id int) (SongDownload, error)
-	GetListSongForUser(userId int) ([]response.SongResponse, error)
+	GetListSongForUser(userId string) ([]response.SongResponse, error)
+	UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error)
+	UserLikeSong(SongId int, UserId string) (MessageResponse, error)
+	SearchSong()
 }
 type MessageResponse struct {
 	Message string
@@ -238,11 +241,11 @@ func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
 	return ArrayHistory, ArraySongLike, nil
 
 }
-func GetMax(limt int, Songlength int) int {
-	if Songlength < limt {
-		return Songlength
+func GetMax(Limit int, SongLength int) int {
+	if SongLength < Limit {
+		return SongLength
 	}
-	return limt
+	return Limit
 
 }
 func (songServe *SongService) GetListSongForUser(userId string) ([]response.SongResponse, error) {
@@ -330,4 +333,34 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 		SongResponse = append(SongResponse, SongEntityMapToSongResponse(Song))
 	}
 	return SongResponse, nil
+}
+func (songServe *SongService) UserLikeSong(SongId int, UserId string) (MessageResponse, error) {
+	UserRepo := songServe.UserRepo
+	SongRepo := songServe.SongRepo
+	User, ErrorToGetUser := UserRepo.FindById(UserId)
+	Song, ErrorToGetSong := SongRepo.GetSongById(SongId)
+	if ErrorToGetUser != nil {
+		return MessageResponse{
+			Message: "fail",
+			Status:  "failed",
+		}, ErrorToGetUser
+	}
+	if ErrorToGetSong != nil {
+		return MessageResponse{
+			Message: "fail",
+			Status:  "failed",
+		}, ErrorToGetSong
+	}
+	User.Song = append(User.Song, Song)
+	ErrorToUpdate := UserRepo.Update(User, UserId)
+	if ErrorToUpdate != nil {
+		return MessageResponse{
+			Message: "fail",
+			Status:  "failed",
+		}, ErrorToUpdate
+	}
+	return MessageResponse{
+		Message: "Update Success",
+		Status:  "Success",
+	}, nil
 }

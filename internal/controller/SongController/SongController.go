@@ -31,6 +31,7 @@ func InitSongController() {
 func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/song/create", Controller.CreateNewSong).Methods("POST")
 	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
+	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -89,5 +90,26 @@ func (Controller *SongController) DownLoadSong(Write http.ResponseWriter, Req *h
 		log.Print(errorToConvert)
 		return
 	}
+
+}
+func (Controller *SongController) UserLikeSong(Write http.ResponseWriter, Req *http.Request) {
+	UserId := Req.URL.Query().Get("userid")
+	SongId := Req.URL.Query().Get("songid")
+	fmt.Print("sss")
+	SongIdConvert, ErrorToConvertString := strconv.Atoi(SongId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	resp, ErrorToLike := Controller.songService.UserLikeSong(SongIdConvert, UserId)
+	if ErrorToLike != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToLike)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(resp)
 
 }
