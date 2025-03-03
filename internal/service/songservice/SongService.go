@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sort"
 	"ten_module/internal/Config"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
@@ -23,11 +24,18 @@ type SongServiceInterface interface {
 	GetAllSong() ([]response.SongResponse, error)
 	CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error)
 	DownLoadSong(Id int) (SongDownload, error)
+	GetListSongForUser(userId int) ([]response.SongResponse, error)
 }
 type MessageResponse struct {
 	Message string
 	Status  string
 }
+
+const (
+	FIRST_SONG  = 4
+	SECOND_SONG = 3
+	THIRD_SONG  = 2
+)
 
 var SongServices *SongService
 
@@ -165,4 +173,161 @@ func (songServe *SongService) DownLoadSong(Id int) (SongDownload, error) {
 		Resp:     resp,
 		NameSong: Song.NameSong,
 	}, nil
+}
+
+type HistoryPair struct {
+	IdType int
+	Amount int
+}
+type HistoryLike struct {
+	IdType int
+	Amount int
+}
+
+func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
+	SongUserListen := user.ListenHistory
+	SongUserLike := user.Song
+	TrackSongListen := make(map[int]int)
+	TrackSongLike := make(map[int]int)
+	ArrayHistory := []HistoryPair{}
+	ArraySongLike := []HistoryLike{}
+	now := time.Now()
+	beginningOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	sevenDaysAgo := beginningOfToday.AddDate(0, 0, -7)
+	for _, ListenHistoryItem := range SongUserListen {
+		TimeUserListen := ListenHistoryItem.ListenDay
+		if TimeUserListen.Before(sevenDaysAgo) || TimeUserListen.After(now) {
+			continue
+		}
+		Song, ErrorToGetSong := SongServices.SongRepo.GetSongById(ListenHistoryItem.SongId)
+		if ErrorToGetSong != nil {
+			log.Print(ErrorToGetSong)
+			return nil, nil, ErrorToGetSong
+		}
+		SongTypeUser := Song.SongType
+		for _, SongTypeItem := range SongTypeUser {
+			TrackSongListen[SongTypeItem.ID]++
+		}
+	}
+	for IdSongType, value := range TrackSongListen {
+		Check := HistoryPair{
+			IdType: IdSongType,
+			Amount: value,
+		}
+		ArrayHistory = append(ArrayHistory, Check)
+	}
+	sort.Slice(ArrayHistory, func(i, j int) bool {
+		return ArrayHistory[i].Amount > ArrayHistory[j].Amount
+	})
+	for _, SongUserLikeItem := range SongUserLike {
+		SongTypeUser := SongUserLikeItem.SongType
+		for _, SongTypeItem := range SongTypeUser {
+			TrackSongLike[SongTypeItem.ID]++
+		}
+	}
+	for IdSongType, value := range TrackSongLike {
+		Check := HistoryLike{
+			IdType: IdSongType,
+			Amount: value,
+		}
+		ArraySongLike = append(ArraySongLike, Check)
+	}
+	sort.Slice(ArraySongLike, func(i, j int) bool {
+		return ArraySongLike[i].Amount > ArraySongLike[j].Amount
+	})
+	return ArrayHistory, ArraySongLike, nil
+
+}
+func GetMax(limt int, Songlength int) int {
+	if Songlength < limt {
+		return Songlength
+	}
+	return limt
+
+}
+func (songServe *SongService) GetListSongForUser(userId string) ([]response.SongResponse, error) {
+	UserRepo := songServe.UserRepo
+	SongRepo := songServe.SongRepo
+	SongTypeRepo := songServe.SongTypeRepo
+	SongResponse := []response.SongResponse{}
+	UserById, ErrorToGetUser := UserRepo.FindById(userId)
+	if ErrorToGetUser != nil {
+		log.Print(ErrorToGetUser)
+		return nil, ErrorToGetUser
+	}
+	MaxListenIn7Day, MaxLike, ErrorToGet := TrackSongForUser(UserById)
+	if ErrorToGet != nil {
+		return nil, ErrorToGetUser
+	}
+	amountSongType := 0
+	if len(MaxListenIn7Day) != 0 {
+		for _, value := range MaxListenIn7Day {
+			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
+			if ErrorToGetType != nil {
+				log.Print(ErrorToGetType)
+				return nil, ErrorToGetType
+			}
+			SongArray := SongType.Song
+			if amountSongType == 0 {
+				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType == 1 {
+				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType == 2 {
+				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType > 2 {
+				break
+			}
+			amountSongType++
+		}
+		return SongResponse, nil
+
+	}
+	if len(MaxLike) != 0 {
+		for _, value := range MaxLike {
+			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
+			if ErrorToGetType != nil {
+				log.Print(ErrorToGetType)
+				return nil, ErrorToGetType
+			}
+			SongArray := SongType.Song
+			if amountSongType == 0 {
+				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType == 1 {
+				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType == 2 {
+				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
+					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+				}
+			}
+			if amountSongType > 2 {
+				break
+			}
+			amountSongType++
+		}
+		return SongResponse, nil
+	}
+	Song, err := SongRepo.FindAll()
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	for _, Song := range Song {
+		SongResponse = append(SongResponse, SongEntityMapToSongResponse(Song))
+	}
+	return SongResponse, nil
 }

@@ -43,7 +43,13 @@ func (instance *UserRepository) FindAll() ([]entity.User, error) {
 func (instance *UserRepository) FindById(Id string) (entity.User, error) {
 	Database := instance.DB
 	var User entity.User
-	err := Database.Preload("WatchHistory").Where("id=?", Id).First(&User).Error
+	err := Database.
+		Preload("ListenHistory").
+		Preload("Song").
+		Preload("PlayList").
+		Preload("Review").
+		Where("id = ?", Id).
+		First(&User).Error
 	if err != nil {
 		return entity.User{}, err
 	}

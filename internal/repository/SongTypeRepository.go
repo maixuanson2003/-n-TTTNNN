@@ -38,7 +38,7 @@ func (songTypeRepo *SongTypeRepository) FindAll() ([]entity.SongType, error) {
 func (songTypeRepo *SongTypeRepository) GetSongTypeById(Id int) (entity.SongType, error) {
 	Database := songTypeRepo.DB
 	var SongType entity.SongType
-	err := Database.Model(&entity.SongType{}).Where("id=?", Id).First(&SongType).Error
+	err := Database.Model(&entity.SongType{}).Preload("Song").Where("id=?", Id).First(&SongType).Error
 	if err != nil {
 		return entity.SongType{}, err
 	}
