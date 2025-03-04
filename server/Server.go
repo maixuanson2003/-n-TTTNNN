@@ -1,13 +1,12 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	database "ten_module/Database"
 	Authcontroller "ten_module/internal/controller/AuthController"
+	historycontroller "ten_module/internal/controller/HistoryController"
 	songcontroller "ten_module/internal/controller/SongController"
 	"ten_module/internal/controller/UserController"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -46,9 +45,8 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	authController.RegisterRoute(mainRouter)
 	songController := songcontroller.SongControllers
 	songController.RegisterRoute(mainRouter)
-	CurrentDay := time.Now()
-	SevenDayRangeTime := CurrentDay.AddDate(0, 0, -7)
-	fmt.Print(CurrentDay)
-	fmt.Print(SevenDayRangeTime)
+	HistoryController := historycontroller.HistoryControllers
+	HistoryController.RegisterRoute(mainRouter)
+
 	http.ListenAndServe(*address, handler)
 }

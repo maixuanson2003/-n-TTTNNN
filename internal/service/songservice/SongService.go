@@ -2,6 +2,7 @@ package songservice
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -190,6 +191,7 @@ type HistoryLike struct {
 func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
 	SongUserListen := user.ListenHistory
 	SongUserLike := user.Song
+
 	TrackSongListen := make(map[int]int)
 	TrackSongLike := make(map[int]int)
 	ArrayHistory := []HistoryPair{}
@@ -223,8 +225,12 @@ func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
 		return ArrayHistory[i].Amount > ArrayHistory[j].Amount
 	})
 	for _, SongUserLikeItem := range SongUserLike {
-		SongTypeUser := SongUserLikeItem.SongType
-		for _, SongTypeItem := range SongTypeUser {
+		SongTypeUser, errorToGetSong := SongServices.SongRepo.GetSongById(SongUserLikeItem.ID)
+		if errorToGetSong != nil {
+			log.Print(errorToGetSong)
+			return nil, nil, errorToGetSong
+		}
+		for _, SongTypeItem := range SongTypeUser.SongType {
 			TrackSongLike[SongTypeItem.ID]++
 		}
 	}
@@ -235,6 +241,7 @@ func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
 		}
 		ArraySongLike = append(ArraySongLike, Check)
 	}
+	fmt.Print(ArraySongLike)
 	sort.Slice(ArraySongLike, func(i, j int) bool {
 		return ArraySongLike[i].Amount > ArraySongLike[j].Amount
 	})
@@ -246,6 +253,19 @@ func GetMax(Limit int, SongLength int) int {
 		return SongLength
 	}
 	return Limit
+
+}
+func GetTrueResult(Response []response.SongResponse) []response.SongResponse {
+	checktrue := make(map[response.SongResponse]int)
+	result := []response.SongResponse{}
+	for _, value := range Response {
+		checktrue[value]++
+	}
+	for key, _ := range checktrue {
+		result = append(result, key)
+
+	}
+	return result
 
 }
 func (songServe *SongService) GetListSongForUser(userId string) ([]response.SongResponse, error) {
@@ -271,6 +291,7 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 				return nil, ErrorToGetType
 			}
 			SongArray := SongType.Song
+			fmt.Print(SongArray)
 			if amountSongType == 0 {
 				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
 					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
@@ -291,10 +312,11 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 			}
 			amountSongType++
 		}
-		return SongResponse, nil
+		return GetTrueResult(SongResponse), nil
 
 	}
 	if len(MaxLike) != 0 {
+		fmt.Print("check")
 		for _, value := range MaxLike {
 			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
 			if ErrorToGetType != nil {
@@ -322,8 +344,9 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 			}
 			amountSongType++
 		}
-		return SongResponse, nil
+		return GetTrueResult(SongResponse), nil
 	}
+	fmt.Print("check2")
 	Song, err := SongRepo.FindAll()
 	if err != nil {
 		log.Print(err)

@@ -4,6 +4,7 @@ import (
 	database "ten_module/Database"
 	middleware "ten_module/Middleware"
 	Authcontroller "ten_module/internal/controller/AuthController"
+	historycontroller "ten_module/internal/controller/HistoryController"
 	songcontroller "ten_module/internal/controller/SongController"
 	"ten_module/internal/controller/UserController"
 	"ten_module/internal/repository"
@@ -18,7 +19,9 @@ func InitSingleton() {
 	repository.InitArtistRepository()
 	repository.InitSongRepo()
 	repository.InitSongTypeRepository()
+	repository.InitListenHistoryRepo()
 	UserController.InitService()
 	Authcontroller.InitController()
 	songcontroller.InitSongService()
+	historycontroller.InitHistoryService()
 }

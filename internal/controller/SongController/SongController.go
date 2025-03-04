@@ -32,6 +32,7 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/song/create", Controller.CreateNewSong).Methods("POST")
 	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
 	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
+	r.HandleFunc("/foruser/{id}", Controller.GetSongForUser).Methods("GET")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -112,4 +113,16 @@ func (Controller *SongController) UserLikeSong(Write http.ResponseWriter, Req *h
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(resp)
 
+}
+func (Controller *SongController) GetSongForUser(Write http.ResponseWriter, Req *http.Request) {
+	url := Req.URL.Path
+	UserId := strings.Split(url, "/")[3]
+	Resp, ErrorToGetSong := Controller.songService.GetListSongForUser(UserId)
+	if ErrorToGetSong != nil {
+		http.Error(Write, "failed to get song", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(Resp)
 }
