@@ -32,7 +32,7 @@ type SongRepoInterface interface {
 func (songRepository *SongRepository) FindAll() ([]entity.Song, error) {
 	Database := songRepository.DB
 	var Song []entity.Song
-	err := Database.Model(&entity.Song{}).Find(&Song).Error
+	err := Database.Model(&entity.Song{}).Preload("SongType").Preload("Artist").Find(&Song).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (songRepository *SongRepository) FindAll() ([]entity.Song, error) {
 func (songRepository *SongRepository) GetSongById(Id int) (entity.Song, error) {
 	Database := songRepository.DB
 	var Song entity.Song
-	err := Database.Model(&entity.Song{}).Preload("SongType").Where("id=?", Id).First(&Song).Error
+	err := Database.Model(&entity.Song{}).Preload("SongType").Preload("Artist").Where("id=?", Id).First(&Song).Error
 	if err != nil {
 		return entity.Song{}, err
 	}

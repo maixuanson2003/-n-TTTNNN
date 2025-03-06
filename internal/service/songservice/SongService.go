@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"sort"
 	"ten_module/internal/Config"
@@ -283,6 +284,8 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 		return nil, ErrorToGetUser
 	}
 	amountSongType := 0
+	srcSong := rand.NewSource(time.Now().UnixNano())
+	randSong := rand.New(srcSong)
 	if len(MaxListenIn7Day) != 0 {
 		for _, value := range MaxListenIn7Day {
 			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
@@ -291,20 +294,39 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 				return nil, ErrorToGetType
 			}
 			SongArray := SongType.Song
+			lenCheck := len(SongArray)
 			fmt.Print(SongArray)
 			if amountSongType == 0 {
 				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType == 1 {
 				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType == 2 {
 				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType > 2 {
@@ -324,19 +346,38 @@ func (songServe *SongService) GetListSongForUser(userId string) ([]response.Song
 				return nil, ErrorToGetType
 			}
 			SongArray := SongType.Song
+			lenCheck := len(SongArray)
 			if amountSongType == 0 {
 				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType == 1 {
 				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType == 2 {
 				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
-					SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					if lenCheck <= 5 {
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
+					}
+					if lenCheck > 5 {
+						randomNumber := randSong.Intn(lenCheck)
+						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
+					}
 				}
 			}
 			if amountSongType > 2 {
