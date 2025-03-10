@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"log"
 	database "ten_module/Database"
 	entity "ten_module/internal/Entity"
 
@@ -44,4 +45,21 @@ func (ArtistRepo *ArtistRepository) GetArtistById(Id int) (entity.Artist, error)
 		return entity.Artist{}, err
 	}
 	return Artist, nil
+}
+func (ArtistRepo *ArtistRepository) CreateArtist(Artist entity.Artist) error {
+	Database := ArtistRepo.DB
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Create(&Artist).Error
+		if err != nil {
+			return err
+
+		}
+		return nil
+
+	})
+	if errs != nil {
+		log.Print(errs)
+		return errs
+	}
+	return nil
 }

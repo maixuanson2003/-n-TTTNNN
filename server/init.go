@@ -3,6 +3,7 @@ package server
 import (
 	database "ten_module/Database"
 	middleware "ten_module/Middleware"
+	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
 	historycontroller "ten_module/internal/controller/HistoryController"
 	songcontroller "ten_module/internal/controller/SongController"
@@ -24,4 +25,5 @@ func InitSingleton() {
 	Authcontroller.InitController()
 	songcontroller.InitSongService()
 	historycontroller.InitHistoryService()
+	artistcontroller.InitArtistControll()
 }
