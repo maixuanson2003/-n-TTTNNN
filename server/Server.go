@@ -6,6 +6,7 @@ import (
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
 	historycontroller "ten_module/internal/controller/HistoryController"
+	playlistcontroller "ten_module/internal/controller/PlayListController"
 	songcontroller "ten_module/internal/controller/SongController"
 	"ten_module/internal/controller/UserController"
 
@@ -53,6 +54,9 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	//artist route
 	ArtistController := artistcontroller.ArtistControll
 	ArtistController.RegisterRoute(mainRouter)
+	//playlist route
+	PlayListController := playlistcontroller.PlayListControll
+	PlayListController.RegisterRoute(mainRouter)
 
 	http.ListenAndServe(*address, handler)
 }

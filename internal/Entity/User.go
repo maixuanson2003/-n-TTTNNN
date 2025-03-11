@@ -1,7 +1,7 @@
 package entity
 
 type User struct {
-	ID            string `gorm:"type:varchar(255);primaryKey";`
+	ID            string `gorm:"type:varchar(255);primaryKey"`
 	Username      string
 	FullName      string
 	Password      string
@@ -12,7 +12,7 @@ type User struct {
 	Age           string
 	Role          string
 	ListenHistory []ListenHistory
-	Song          []Song `gorm:"many2many:User_Like";constraint:OnDelete:CASCADE;`
-	PlayList      []PlayList
-	Review        []Review
+	Song          []Song     `gorm:"many2many:User_Like;constraint:OnDelete:CASCADE;"`
+	PlayList      []PlayList `gorm:"constraint:OnDelete:CASCADE"`
+	Review        []Review   `gorm:"constraint:OnDelete:CASCADE"`
 }

@@ -11,5 +11,5 @@ type Album struct {
 	CreateDay   time.Time
 	UpdateDay   time.Time
 	Song        []Song
-	Artist      []Artist `gorm:"many2many:Album_Artist";`
+	Artist      []Artist `gorm:"many2many:Album_Artist;"`
 }

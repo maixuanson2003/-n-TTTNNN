@@ -14,6 +14,6 @@ type SongResponse struct {
 	Status       string
 	CountryId    int
 	ListenAmout  int
-	AlbumId      int
+	AlbumId      *int
 	SongResource string
 }

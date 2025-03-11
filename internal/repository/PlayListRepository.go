@@ -31,7 +31,7 @@ type PlayListRepositoryInterface interface {
 func (PlayListRepo *PlayListRepository) FindAll() ([]entity.PlayList, error) {
 	Database := ArtistRepo.DB
 	var PlayList []entity.PlayList
-	err := Database.Model(&entity.Artist{}).Find(&PlayList).Error
+	err := Database.Model(&entity.PlayList{}).Preload("Song").Find(&PlayList).Error
 	if err != nil {
 		return nil, err
 	}

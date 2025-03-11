@@ -1,11 +1,11 @@
-package entity
+package response
 
 import "time"
 
-type Collection struct {
+type CollectionResponse struct {
 	ID             int
 	NameCollection string
 	CreateAt       time.Time
 	UpdateAt       time.Time
-	Song           []Song `gorm:"many2many:Collection_Song;"`
+	Song           []SongResponse
 }

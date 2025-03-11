@@ -6,6 +6,6 @@ type Artist struct {
 	BirthDay    string
 	Description string
 	Country     string
-	Song        []Song  `gorm:"many2many:Song_Artist";`
-	Album       []Album `gorm:"many2many:Album_Artist";`
+	Song        []Song  `gorm:"many2many:Song_Artist;"`
+	Album       []Album `gorm:"many2many:Album_Artist;"`
 }
