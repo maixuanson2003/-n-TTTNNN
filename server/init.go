@@ -5,6 +5,7 @@ import (
 	middleware "ten_module/Middleware"
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
+	collectioncontroller "ten_module/internal/controller/CollectionController"
 	historycontroller "ten_module/internal/controller/HistoryController"
 	playlistcontroller "ten_module/internal/controller/PlayListController"
 	songcontroller "ten_module/internal/controller/SongController"
@@ -30,4 +31,5 @@ func InitSingleton() {
 	historycontroller.InitHistoryService()
 	artistcontroller.InitArtistControll()
 	playlistcontroller.InitPlayListControll()
+	collectioncontroller.InitCollectionControll()
 }

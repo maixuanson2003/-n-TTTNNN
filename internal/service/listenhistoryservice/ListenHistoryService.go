@@ -47,7 +47,6 @@ func (HistoryServ *ListenHistoryService) SaveHistoryListen(UserId string, SongId
 
 	}
 	SongItem.ListenAmout += 1
-	SongItem.AlbumId = nil
 	ErrorToUpdateSong := SongRepo.UpdateSong(SongItem, SongId)
 	if ErrorToUpdateSong != nil {
 		return MessageResponse{
