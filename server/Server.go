@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	database "ten_module/Database"
+	albumcontroller "ten_module/internal/controller/AlbumController"
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
 	collectioncontroller "ten_module/internal/controller/CollectionController"
@@ -61,6 +62,9 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	//collection route
 	CollectionController := collectioncontroller.CollectionControll
 	CollectionController.RegisterRoute(mainRouter)
+	//album route
+	AlbumController := albumcontroller.AlbumControll
+	AlbumController.RegisterRoute(mainRouter)
 
 	http.ListenAndServe(*address, handler)
 }
