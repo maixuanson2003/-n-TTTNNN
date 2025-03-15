@@ -31,7 +31,7 @@ type AlbumRepositoryInterface interface {
 func (AlbumRepo *AlbumRepository) FindAll() ([]entity.Album, error) {
 	Database := ArtistRepo.DB
 	var Album []entity.Album
-	err := Database.Model(&entity.Album{}).Find(&Album).Error
+	err := Database.Model(&entity.Album{}).Preload("Song").Preload("Artist").Find(&Album).Error
 	if err != nil {
 		return nil, err
 	}

@@ -40,7 +40,7 @@ func (ArtistRepo *ArtistRepository) FindAll() ([]entity.Artist, error) {
 func (ArtistRepo *ArtistRepository) GetArtistById(Id int) (entity.Artist, error) {
 	Database := ArtistRepo.DB
 	var Artist entity.Artist
-	err := Database.Model(&entity.Artist{}).Where("id=?", Id).First(&Artist).Error
+	err := Database.Model(&entity.Artist{}).Preload("Album").Where("id=?", Id).First(&Artist).Error
 	if err != nil {
 		return entity.Artist{}, err
 	}

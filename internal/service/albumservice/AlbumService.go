@@ -8,6 +8,7 @@ import (
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
 	"ten_module/internal/repository"
+	"ten_module/internal/service/artistservice"
 	"ten_module/internal/service/songservice"
 	"time"
 )
@@ -37,10 +38,34 @@ func InitAlbumSerivce() {
 type AlbumServiceInterface interface {
 	GetListAlbum() ([]response.AlbumResponse, error)
 	GetAlbumById(Id int) (response.AlbumResponse, error)
+	GetAlbumByArtist(artistId int) ([]response.AlbumResponse, error)
 	CreateAlbum(AlbumReq request.AlbumRequest, SongFileAlum []request.SongFileAlbum) (MessageResponse, error)
 	UpdateAlbum(AlbumReq request.AlbumRequest) (MessageResponse, error)
 }
 
+func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
+	SongEntity := Album.Song
+	Artist := Album.Artist
+	ArtistResponse := []response.ArtistResponse{}
+	SongResponse := []response.SongResponse{}
+	for _, SongItem := range SongEntity {
+		SongResponse = append(SongResponse, songservice.SongEntityMapToSongResponse(SongItem))
+	}
+	for _, ArtistItem := range Artist {
+		ArtistResponse = append(ArtistResponse, artistservice.MapArtistEntityToResponse(ArtistItem))
+	}
+	return response.AlbumResponse{
+		ID:          Album.ID,
+		NameAlbum:   Album.NameAlbum,
+		Description: Album.Description,
+		ReleaseDay:  Album.ReleaseDay,
+		CreateDay:   Album.CreateDay,
+		UpdateDay:   Album.UpdateDay,
+		ArtistOwner: Album.ArtistOwner,
+		Song:        SongResponse,
+		Artist:      ArtistResponse,
+	}
+}
 func (AlbumServe *AlbumSerivce) CreateAlbum(AlbumReq request.AlbumRequest, SongFileAlum []request.SongFileAlbum) (MessageResponse, error) {
 	AlbumRepo := AlbumServe.AlbumRepo
 	ArtistRepo := AlbumServe.ArtistRepo
@@ -137,4 +162,49 @@ func (AlbumServe *AlbumSerivce) CreateAlbum(AlbumReq request.AlbumRequest, SongF
 		Status:  "Success",
 	}, nil
 
+}
+func (AlbumServe *AlbumSerivce) GetListAlbum() ([]response.AlbumResponse, error) {
+	AlbumRepo := AlbumServe.AlbumRepo
+	AlbumList, ErrorToGetListAlbum := AlbumRepo.FindAll()
+	if ErrorToGetListAlbum != nil {
+		log.Print(ErrorToGetListAlbum)
+		return nil, ErrorToGetListAlbum
+
+	}
+	AlbumListResponse := []response.AlbumResponse{}
+	for _, AlbumItem := range AlbumList {
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(AlbumItem))
+	}
+	return AlbumListResponse, nil
+}
+func (AlbumServe *AlbumSerivce) GetAlbumById(Id int) (response.AlbumResponse, error) {
+	AlbumRepo := AlbumServe.AlbumRepo
+	AlbumItem, ErrorToGetAlbum := AlbumRepo.GetAlbumById(Id)
+	if ErrorToGetAlbum != nil {
+		log.Print(ErrorToGetAlbum)
+		return response.AlbumResponse{}, ErrorToGetAlbum
+
+	}
+	AlbumRespone := AlbumEntityMapToAlbumResponse(AlbumItem)
+	return AlbumRespone, nil
+}
+func (AlbumServe *AlbumSerivce) GetAlbumByArtist(artistId int) ([]response.AlbumResponse, error) {
+	ArtistRepo := AlbumServe.ArtistRepo
+	AlbumRepo := AlbumServe.AlbumRepo
+	ArtistItem, ErrorToGetArtist := ArtistRepo.GetArtistById(artistId)
+	if ErrorToGetArtist != nil {
+		log.Print(ErrorToGetArtist)
+		return nil, ErrorToGetArtist
+	}
+	AlbumList := ArtistItem.Album
+	AlbumListResponse := []response.AlbumResponse{}
+	for _, AlbumItem := range AlbumList {
+		Album, Error := AlbumRepo.GetAlbumById(AlbumItem.ID)
+		if Error != nil {
+			log.Print(Error)
+			return nil, Error
+		}
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(Album))
+	}
+	return AlbumListResponse, nil
 }

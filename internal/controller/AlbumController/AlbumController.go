@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/albumservice"
 
@@ -23,6 +25,9 @@ func InitAlbumController() {
 }
 func (AlbumControll *AlbumController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createalbum", AlbumControll.CreateAlbum).Methods("POST")
+	r.HandleFunc("/album/getlist", AlbumControll.GetListAlbum).Methods("GET")
+	r.HandleFunc("/album/{id}", AlbumControll.GetAlbumById).Methods("GET")
+	r.HandleFunc("/getalbum/artist", AlbumControll.GetAlbumByArtist).Methods("GET")
 
 }
 func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Request *http.Request) {
@@ -71,4 +76,57 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(Write).Encode(Resp)
+}
+func (AlbumControll *AlbumController) GetListAlbum(Write http.ResponseWriter, Request *http.Request) {
+	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetListAlbum()
+	if ErrorToGetAlbum != nil {
+		log.Print(ErrorToGetAlbum)
+		http.Error(Write, "faile to get list", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(Resp)
+}
+func (AlbumControll *AlbumController) GetAlbumById(Write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	TakeAlbumId := strings.Split(url, "/")[3]
+	AlbumId, ErrorToConvertToNumber := strconv.Atoi(TakeAlbumId)
+	if ErrorToConvertToNumber != nil {
+		log.Print(ErrorToConvertToNumber)
+		http.Error(Write, "failed to convert to int", http.StatusBadRequest)
+		return
+
+	}
+	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetAlbumById(AlbumId)
+	if ErrorToGetAlbum != nil {
+		log.Print(ErrorToGetAlbum)
+		http.Error(Write, "failed to get album", http.StatusBadRequest)
+		return
+
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(Resp)
+}
+func (AlbumControll *AlbumController) GetAlbumByArtist(Write http.ResponseWriter, Request *http.Request) {
+	ArtistId, ErrorToConvert := strconv.Atoi(Request.URL.Query().Get("artistid"))
+	if ErrorToConvert != nil {
+		log.Print(ErrorToConvert)
+		http.Error(Write, "failed to convert", http.StatusBadRequest)
+		return
+
+	}
+
+	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetAlbumByArtist(ArtistId)
+	if ErrorToGetAlbum != nil {
+		log.Print(ErrorToGetAlbum)
+		http.Error(Write, "failed get album by  artist", http.StatusBadRequest)
+		return
+
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(Resp)
+
 }

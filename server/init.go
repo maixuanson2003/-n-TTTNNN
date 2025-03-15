@@ -19,6 +19,7 @@ func InitSingleton() {
 	middleware.InitMiddleWare()
 	authservice.Init()
 	database.Init()
+	// Repository
 	repository.InitUserRepo()
 	repository.InitArtistRepository()
 	repository.InitSongRepo()
