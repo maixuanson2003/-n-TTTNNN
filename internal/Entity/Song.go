@@ -18,6 +18,7 @@ type Song struct {
 	SongType      []SongType `gorm:"many2many:Song_SongType;"`
 	SongResource  string     `gorm:"not null"`
 	ListenHistory []ListenHistory
+	Review        []Review
 	Artist        []Artist     `gorm:"many2many:Song_Artist;"`
 	User          []User       `gorm:"many2many:User_Like;"`
 	PlayList      []PlayList   `gorm:"many2many:PlayList_Song;"`
