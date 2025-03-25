@@ -1,0 +1,16 @@
+INSERT INTO song_types (type, creat_at) VALUES
+('Pop', NOW()),
+('Rock', NOW()),
+('Hip Hop', NOW()),
+('Jazz', NOW()),
+('Blues', NOW()),
+('R&B', NOW()),
+('Country', NOW()),
+('Classical', NOW()),
+('EDM', NOW()),
+('Reggae', NOW()),
+('Folk', NOW()),
+('Metal', NOW()),
+('Indie', NOW()),
+('Lo-fi', NOW()),
+('Latin', NOW());

@@ -10,6 +10,7 @@ import (
 
 type ArtistService struct {
 	ArtistRepo *repository.ArtistRepository
+	CountryRep *repository.CountryRepository
 }
 type MessageResponse struct {
 	Message string
@@ -25,15 +26,16 @@ var ArtistServe *ArtistService
 func InitArtistService() {
 	ArtistServe = &ArtistService{
 		ArtistRepo: repository.ArtistRepo,
+		CountryRep: repository.CountryRepo,
 	}
 }
-func MapArtistEntityToResponse(Artist entity.Artist) response.ArtistResponse {
+func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) response.ArtistResponse {
 	return response.ArtistResponse{
 		ID:          Artist.ID,
 		Name:        Artist.Name,
 		BirthDay:    Artist.BirthDay,
 		Description: Artist.Description,
-		Country:     Artist.Country,
+		Country:     NameCountry,
 	}
 }
 func MapArtistToEntity(Artist request.ArtistRequest) entity.Artist {
@@ -41,11 +43,12 @@ func MapArtistToEntity(Artist request.ArtistRequest) entity.Artist {
 		Name:        Artist.Name,
 		BirthDay:    Artist.BirthDay,
 		Description: Artist.Description,
-		Country:     Artist.Country,
+		CountryId:   Artist.CountryId,
 	}
 }
 func (ArtistServe *ArtistService) GetListArtist() ([]response.ArtistResponse, error) {
 	ArtRepo := ArtistServe.ArtistRepo
+	CountryRepo := ArtistServe.CountryRep
 	ArtistList, ErrorToGetArtist := ArtRepo.FindAll()
 	ArtistRes := []response.ArtistResponse{}
 	if ErrorToGetArtist != nil {
@@ -53,7 +56,12 @@ func (ArtistServe *ArtistService) GetListArtist() ([]response.ArtistResponse, er
 		return nil, ErrorToGetArtist
 	}
 	for _, ArtistItem := range ArtistList {
-		ArtistRes = append(ArtistRes, MapArtistEntityToResponse(ArtistItem))
+		Country, ErrorToGetCountry := CountryRepo.GetCountryById(ArtistItem.CountryId)
+		if ErrorToGetCountry != nil {
+			log.Print(ErrorToGetCountry)
+			return nil, ErrorToGetCountry
+		}
+		ArtistRes = append(ArtistRes, MapArtistEntityToResponse(ArtistItem, Country.CountryName))
 	}
 	return ArtistRes, nil
 }

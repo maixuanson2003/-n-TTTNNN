@@ -4,5 +4,5 @@ type ArtistRequest struct {
 	Name        string
 	BirthDay    string
 	Description string
-	Country     string
+	CountryId   int
 }

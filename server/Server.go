@@ -9,6 +9,7 @@ import (
 	collectioncontroller "ten_module/internal/controller/CollectionController"
 	historycontroller "ten_module/internal/controller/HistoryController"
 	playlistcontroller "ten_module/internal/controller/PlayListController"
+	reviewcontroller "ten_module/internal/controller/ReviewController"
 	songcontroller "ten_module/internal/controller/SongController"
 	"ten_module/internal/controller/UserController"
 
@@ -31,6 +32,7 @@ func GetNewServer(address string, database *gorm.DB) Server {
 func (server *Server) Run(address *string, databases *gorm.DB) {
 	router := mux.NewRouter()
 	database.MigrateDB(database.Database)
+	database.RunSQLFile(database.Database)
 	mainRouter := router.PathPrefix("/api").Subrouter()
 	Cors := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
@@ -65,6 +67,8 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	//album route
 	AlbumController := albumcontroller.AlbumControll
 	AlbumController.RegisterRoute(mainRouter)
-
+	//review route
+	ReviewController := reviewcontroller.ReviewControll
+	ReviewController.RegisterRoute(mainRouter)
 	http.ListenAndServe(*address, handler)
 }

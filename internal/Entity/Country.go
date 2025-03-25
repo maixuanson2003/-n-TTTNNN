@@ -4,7 +4,8 @@ import "time"
 
 type Country struct {
 	ID          int `gorm:"primaryKey;autoIncremen"`
-	QualityName string
+	CountryName string
 	CreateAt    time.Time
 	Song        []Song
+	Artist      []Artist
 }

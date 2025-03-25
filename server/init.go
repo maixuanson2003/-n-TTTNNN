@@ -7,8 +7,10 @@ import (
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
 	collectioncontroller "ten_module/internal/controller/CollectionController"
+	countrycontroller "ten_module/internal/controller/CountryController"
 	historycontroller "ten_module/internal/controller/HistoryController"
 	playlistcontroller "ten_module/internal/controller/PlayListController"
+	reviewcontroller "ten_module/internal/controller/ReviewController"
 	songcontroller "ten_module/internal/controller/SongController"
 	"ten_module/internal/controller/UserController"
 	"ten_module/internal/repository"
@@ -28,8 +30,11 @@ func InitSingleton() {
 	repository.InitPlayListRepository()
 	repository.InitCollectionRepostiory()
 	repository.InitAlbumRepository()
-	UserController.InitService()
+	repository.InitReviewRepository()
+	repository.InitCountryRepository()
+
 	//Controller init
+	UserController.InitService()
 	Authcontroller.InitController()
 	songcontroller.InitSongService()
 	historycontroller.InitHistoryService()
@@ -37,4 +42,6 @@ func InitSingleton() {
 	playlistcontroller.InitPlayListControll()
 	collectioncontroller.InitCollectionControll()
 	albumcontroller.InitAlbumControll()
+	reviewcontroller.InitReviewControll()
+	countrycontroller.InitCountryControll()
 }

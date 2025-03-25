@@ -18,6 +18,7 @@ type AlbumSerivce struct {
 	AlbumRepo    *repository.AlbumRepository
 	SongRepo     *repository.SongRepository
 	SongTypeRepo *repository.SongTypeRepository
+	CountryRepo  *repository.CountryRepository
 }
 type MessageResponse struct {
 	Message string
@@ -52,7 +53,12 @@ func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
 		SongResponse = append(SongResponse, songservice.SongEntityMapToSongResponse(SongItem))
 	}
 	for _, ArtistItem := range Artist {
-		ArtistResponse = append(ArtistResponse, artistservice.MapArtistEntityToResponse(ArtistItem))
+		Country, ErrorToGetCountry := AlbumServe.CountryRepo.GetCountryById(ArtistItem.CountryId)
+		if ErrorToGetCountry != nil {
+			log.Print(ErrorToGetCountry)
+			return response.AlbumResponse{}
+		}
+		ArtistResponse = append(ArtistResponse, artistservice.MapArtistEntityToResponse(ArtistItem, Country.CountryName))
 	}
 	return response.AlbumResponse{
 		ID:          Album.ID,
