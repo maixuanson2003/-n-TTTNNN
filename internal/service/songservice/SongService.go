@@ -11,6 +11,7 @@ import (
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
+	"ten_module/internal/Helper/elastichelper"
 	"ten_module/internal/repository"
 	"time"
 )
@@ -29,7 +30,8 @@ type SongServiceInterface interface {
 	GetListSongForUser(userId string) ([]response.SongResponse, error)
 	UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error)
 	UserLikeSong(SongId int, UserId string) (MessageResponse, error)
-	SearchSong()
+	SearchSong(Keyword string) ([]response.SongResponse, error)
+	FilterSong()
 }
 type MessageResponse struct {
 	Message string
@@ -427,4 +429,13 @@ func (songServe *SongService) UserLikeSong(SongId int, UserId string) (MessageRe
 		Message: "Update Success",
 		Status:  "Success",
 	}, nil
+}
+func (SongServe *SongService) SearchSong(Keyword string) ([]response.SongResponse, error) {
+	Elastic := elastichelper.ElasticHelpers
+	SongResponse, errorToSearchSong := Elastic.SearchSong(Keyword)
+	if errorToSearchSong != nil {
+		log.Print(errorToSearchSong)
+		return nil, errorToSearchSong
+	}
+	return SongResponse, nil
 }

@@ -3,6 +3,7 @@ package server
 import (
 	database "ten_module/Database"
 	middleware "ten_module/Middleware"
+	"ten_module/internal/Helper/elastichelper"
 	albumcontroller "ten_module/internal/controller/AlbumController"
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
@@ -21,6 +22,7 @@ func InitSingleton() {
 	middleware.InitMiddleWare()
 	authservice.Init()
 	database.Init()
+	elastichelper.InitElasticHelpers()
 	// Repository
 	repository.InitUserRepo()
 	repository.InitArtistRepository()

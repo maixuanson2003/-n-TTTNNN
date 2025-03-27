@@ -5,6 +5,7 @@ import (
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
+	"ten_module/internal/Helper/elastichelper"
 	"ten_module/internal/repository"
 )
 
@@ -19,6 +20,9 @@ type MessageResponse struct {
 type ArtistServiceInterface interface {
 	GetListArtist() ([]response.ArtistResponse, error)
 	CreateArtist(ArtistRequest request.ArtistRequest) (MessageResponse, error)
+	SearchArtist(Keyword string) ([]response.ArtistResponse, error)
+	AddArtistToElastic() error
+	CreateIndexArtistInElastic()
 }
 
 var ArtistServe *ArtistService
@@ -80,4 +84,37 @@ func (ArtistServe *ArtistService) CreateArtist(ArtistRequest request.ArtistReque
 		Message: "Success",
 		Status:  "Success",
 	}, nil
+}
+func (ArtistServe *ArtistService) SearchArtist(Keyword string) ([]response.ArtistResponse, error) {
+	Elastic := elastichelper.ElasticHelpers
+	ArtistResponse, errorToSearch := Elastic.SearchArtist(Keyword)
+	if errorToSearch != nil {
+		log.Print(errorToSearch)
+		return nil, errorToSearch
+	}
+	return ArtistResponse, nil
+
+}
+func (ArtistServe *ArtistService) AddArtistToElastic() error {
+	ArtistRepo := ArtistServe.ArtistRepo
+	ElasticHelper := elastichelper.ElasticHelpers
+	ArtistList, ErrorToGetArtist := ArtistRepo.FindAll()
+	if ErrorToGetArtist != nil {
+		log.Print(ErrorToGetArtist)
+		return ErrorToGetArtist
+	}
+	errors := ElasticHelper.InsertDataArtistToIndex("artist", ArtistList)
+	if errors != nil {
+		log.Print(errors)
+		return errors
+	}
+	return nil
+}
+func (ArtistServe *ArtistService) CreateIndexArtistInElastic() {
+	ElasticHelper := elastichelper.ElasticHelpers
+	errors := ElasticHelper.CreateIndexElastic("artist")
+	if errors != nil {
+		log.Print("da co index")
+		return
+	}
 }
