@@ -26,6 +26,7 @@ type PlayListRepositoryInterface interface {
 	CreatePlayList(Artist entity.PlayList) error
 	UpdatePlayList(Artist entity.PlayList, id int) error
 	DeletePlayListById(Id int) error
+	DeleteSong(SongId int, PlayListId int) error
 }
 
 func (PlayListRepo *PlayListRepository) FindAll() ([]entity.PlayList, error) {
@@ -75,6 +76,19 @@ func (PlayListRepo *PlayListRepository) UpdatePlayList(PlayList entity.PlayList,
 	if errs != nil {
 		log.Print(errs)
 		return errs
+	}
+	return nil
+}
+func (PlayListRepo *PlayListRepository) DeleteSong(SongId int, PlayListId int) error {
+	Database := PlayListRepo.DB
+	var PlayList entity.PlayList
+	errorToFindPlayList := Database.Preload("Song").Where("id=?", PlayListId).First(&PlayList).Error
+	if errorToFindPlayList != nil {
+		return errorToFindPlayList
+	}
+	errorToDeleteSongFromPlayList := Database.Model(&PlayList).Association("Song").Delete(entity.Song{ID: SongId})
+	if errorToDeleteSongFromPlayList != nil {
+		return errorToDeleteSongFromPlayList
 	}
 	return nil
 }

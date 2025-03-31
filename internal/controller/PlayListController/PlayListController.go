@@ -26,6 +26,7 @@ func (Controller *PlayListController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/songplay/{id}", Controller.GetSongByPlayList).Methods("GET")
 	r.HandleFunc("/createplay", Controller.CreatePlayList).Methods("POST")
 	r.HandleFunc("/addsong", Controller.AddSongToPlayList).Methods("PUT")
+	r.HandleFunc("/deletesong", Controller.DeletSongFromPlaylist).Methods("DELETE")
 
 }
 func (Controller *PlayListController) GetPlayListByUser(Write http.ResponseWriter, Request *http.Request) {
@@ -82,6 +83,26 @@ func (Controller *PlayListController) AddSongToPlayList(Write http.ResponseWrite
 		return
 	}
 	Resp, ErrorToAddSong := Controller.PlayListServ.AddSongToPlayList(SongId, PlayListId)
+	if ErrorToAddSong != nil {
+		http.Error(Write, "Failed to add song", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(Resp)
+}
+func (Controller *PlayListController) DeletSongFromPlaylist(Write http.ResponseWriter, Request *http.Request) {
+	SongId, ErrorToConvertSongId := strconv.Atoi(Request.URL.Query().Get("songid"))
+	if ErrorToConvertSongId != nil {
+		http.Error(Write, "Failed to convert", http.StatusBadRequest)
+		return
+	}
+	PlayListId, ErrorToConverPlayListId := strconv.Atoi(Request.URL.Query().Get("playlistid"))
+	if ErrorToConverPlayListId != nil {
+		http.Error(Write, "Failed to convert", http.StatusBadRequest)
+		return
+	}
+	Resp, ErrorToAddSong := Controller.PlayListServ.DeleteSongFromPlayList(SongId, PlayListId)
 	if ErrorToAddSong != nil {
 		http.Error(Write, "Failed to add song", http.StatusBadRequest)
 		return

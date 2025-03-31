@@ -23,6 +23,7 @@ type PlayListServiceInterface interface {
 	GetPlayListByUser(UserId string) ([]response.PlayListResponse, error)
 	CreatePlayList(NamePlayList string, UserId string) (MessageResponse, error)
 	AddSongToPlayList(SongId int, PlayListId int) (MessageResponse, error)
+	DeleteSongFromPlayList(SongId int, PlayListId int) (MessageResponse, error)
 }
 
 var PlayListServe *PlayListService
@@ -121,6 +122,21 @@ func (playlistService *PlayListService) AddSongToPlayList(SongId int, PlayListId
 	}
 	return MessageResponse{
 		Message: "success to add song playlist",
+		Status:  "Success",
+	}, nil
+}
+func (playlistService *PlayListService) DeleteSongFromPlayList(SongId int, PlayListId int) (MessageResponse, error) {
+	PlayListRepo := playlistService.PlayListRepo
+	errorToDeletSong := PlayListRepo.DeleteSong(SongId, PlayListId)
+	if errorToDeletSong != nil {
+		log.Print(errorToDeletSong)
+		return MessageResponse{
+			Message: "failed to delete song",
+			Status:  "Failed",
+		}, errorToDeletSong
+	}
+	return MessageResponse{
+		Message: "success to delete song",
 		Status:  "Success",
 	}, nil
 }

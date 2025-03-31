@@ -17,6 +17,7 @@ type CollectionRepostioryInterface interface {
 	CreateCollect(Collect entity.Collection) error
 	UpdateCollect(Collect entity.Collection, id int) error
 	DeleteCollectById(Id int) error
+	DeleteSong(SongId int, CollectionId int) error
 }
 
 var CollectionRepo *CollectionRepostiory
@@ -73,6 +74,19 @@ func (CollectionRepo *CollectionRepostiory) UpdateCollect(Collect entity.Collect
 	if errs != nil {
 		log.Print(errs)
 		return errs
+	}
+	return nil
+}
+func (CollectionRepo *CollectionRepostiory) DeleteSong(SongId int, CollectionId int) error {
+	Database := CollectionRepo.DB
+	var Collection entity.Collection
+	errorToFindCollection := Database.Preload("Song").Where("id=?", CollectionId).First(&Collection).Error
+	if errorToFindCollection != nil {
+		return errorToFindCollection
+	}
+	errorToDeleteSongFromCollection := Database.Model(&Collection).Association("Song").Delete(entity.Song{ID: SongId})
+	if errorToDeleteSongFromCollection != nil {
+		return errorToDeleteSongFromCollection
 	}
 	return nil
 }

@@ -24,26 +24,44 @@ func InitSingleton() {
 	database.Init()
 	elastichelper.InitElasticHelpers()
 	// Repository
-	repository.InitUserRepo()
+	repository.InitUserRepo() 
+
 	repository.InitArtistRepository()
+
 	repository.InitSongRepo()
+
 	repository.InitSongTypeRepository()
+
 	repository.InitListenHistoryRepo()
+
 	repository.InitPlayListRepository()
+
 	repository.InitCollectionRepostiory()
+
 	repository.InitAlbumRepository()
+
 	repository.InitReviewRepository()
+
 	repository.InitCountryRepository()
 
 	//Controller init
 	UserController.InitService()
+
 	Authcontroller.InitController()
+
 	songcontroller.InitSongService()
+
 	historycontroller.InitHistoryService()
+
 	artistcontroller.InitArtistControll()
+
 	playlistcontroller.InitPlayListControll()
+
 	collectioncontroller.InitCollectionControll()
+
 	albumcontroller.InitAlbumControll()
+
 	reviewcontroller.InitReviewControll()
+	
 	countrycontroller.InitCountryControll()
 }

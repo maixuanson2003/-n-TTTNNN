@@ -22,7 +22,7 @@ type CollectionServiceInterface interface {
 	GetCollectionById(Id int) (response.CollectionResponse, error)
 	CreateCollection(NameCollection string) (MessageResponse, error)
 	AddSongToCollection(SongId int, CollectionId int) (MessageResponse, error)
-	DeleteCollection(CollectionId int) (MessageResponse, error)
+	DeleteCollection(SongId int, CollectionId int) (MessageResponse, error)
 }
 
 var CollectionServe *CollectionService
@@ -120,6 +120,21 @@ func (CollectionServe *CollectionService) AddSongToCollection(SongId int, Collec
 	}
 	return MessageResponse{
 		Message: "success to add song",
+		Status:  "Success",
+	}, nil
+}
+func (CollectionServe *CollectionService) DeleteSongFromCollection(SongId int, CollectionId int) (MessageResponse, error) {
+	CollectionRepo := CollectionServe.CollectionRepo
+	errorToDeleteSongFromRepo := CollectionRepo.DeleteSong(SongId, CollectionId)
+	if errorToDeleteSongFromRepo != nil {
+		log.Print(errorToDeleteSongFromRepo)
+		return MessageResponse{
+			Message: "faile to delete song",
+			Status:  "Failed",
+		}, errorToDeleteSongFromRepo
+	}
+	return MessageResponse{
+		Message: "Success to delete song",
 		Status:  "Success",
 	}, nil
 }
