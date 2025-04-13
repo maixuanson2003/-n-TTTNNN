@@ -54,31 +54,25 @@ func GetVectorFeatureForSong() (map[int][]int16, []string, error) {
 	}
 	return result, Feature, nil
 }
-func GetVectorFeatureForUser(UserId string, Feature []string) ([]int16, error) {
-	UserRepo := repository.UserRepo
-	UserItem, ErrorToGetUser := UserRepo.FindById(UserId)
-	if ErrorToGetUser != nil {
-		log.Print(ErrorToGetUser)
-		return []int16{}, ErrorToGetUser
+func GetVectorFeatureForUser(SongId int, Feature []string) ([]int16, error) {
+	SongRepo := repository.SongRepo
+	SongItem, ErrorToGetSong := SongRepo.GetSongById(SongId)
+	if ErrorToGetSong != nil {
+		log.Print(ErrorToGetSong)
+		return []int16{}, ErrorToGetSong
 	}
-	ListenHistoryArr := UserItem.ListenHistory
+	Artits := SongItem.Artist
+	SongType := SongItem.SongType
 	BinaryCheck := []int16{}
 	check := make(map[string]int)
-	for _, ListenItem := range ListenHistoryArr {
-		Song, ErrorToGetSong := repository.SongRepo.GetSongById(ListenItem.SongId)
-		artist := Song.Artist
-		SongType := Song.SongType
-		if ErrorToGetSong != nil {
-			log.Print(ErrorToGetSong)
-			return []int16{}, ErrorToGetSong
-		}
-		for _, artistItem := range artist {
-			check[artistItem.Name] = 1
-		}
-		for _, TypeItem := range SongType {
-			check[TypeItem.Type] = 1
-		}
+	for _, ArtistItem := range Artits {
+		check[ArtistItem.Name] = 1
+
 	}
+	for _, SongTypeItem := range SongType {
+		check[SongTypeItem.Type] = 1
+	}
+
 	for _, Feat := range Feature {
 		BinaryCheck = append(BinaryCheck, int16(check[Feat]))
 	}
@@ -86,8 +80,8 @@ func GetVectorFeatureForUser(UserId string, Feature []string) ([]int16, error) {
 
 }
 
-func GetCosineSimilar(featureUser []int16, featureSong []int16) float64 {
-	if len(featureUser) != len(featureSong) {
+func GetCosineSimilar(featureSong1 []int16, featureSong2 []int16) float64 {
+	if len(featureSong1) != len(featureSong2) {
 		fmt.Println("Error: Kích thước vector không khớp!")
 		return 0
 	}
@@ -95,14 +89,20 @@ func GetCosineSimilar(featureUser []int16, featureSong []int16) float64 {
 	var normUser float64 = 0
 	var normSong float64 = 0
 
-	for i := 0; i < len(featureUser); i++ {
-		dotProduct += featureUser[i] * featureSong[i]
-		normUser += math.Pow(float64(featureUser[i]), 2)
-		normSong += math.Pow(float64(featureSong[i]), 2)
+	for i := 0; i < len(featureSong1); i++ {
+		dotProduct += featureSong1[i] * featureSong2[i]
+		normUser += math.Pow(float64(featureSong1[i]), 2)
+		normSong += math.Pow(float64(featureSong2[i]), 2)
 	}
 
 	normUser = math.Sqrt(normUser)
 	normSong = math.Sqrt(normSong)
+	fmt.Println(dotProduct)
+	fmt.Println(normUser)
+
+	fmt.Println(normSong)
+	s := float64(dotProduct) / (normUser * normSong)
+	fmt.Println(s)
 
 	if normUser == 0 || normSong == 0 {
 		return 0

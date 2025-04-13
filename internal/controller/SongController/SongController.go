@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	middleware "ten_module/Middleware"
@@ -33,6 +34,9 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
 	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
 	r.HandleFunc("/foruser/{id}", Controller.GetSongForUser).Methods("GET")
+	r.HandleFunc("/geturl", Controller.GetAllUrlSong).Methods("GET")
+	r.HandleFunc("/getsongall", Controller.GetAllSong).Methods("GET")
+	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -120,6 +124,53 @@ func (Controller *SongController) GetSongForUser(Write http.ResponseWriter, Req 
 	Resp, ErrorToGetSong := Controller.songService.GetListSongForUser(UserId)
 	if ErrorToGetSong != nil {
 		http.Error(Write, "failed to get song", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(Resp)
+}
+func (Controller *SongController) GetAllUrlSong(Write http.ResponseWriter, Req *http.Request) {
+	FolderPath := "C:\\Users\\DPC\\Desktop\\MusicMp4\\internal\\music"
+	FileArray, ErrorToGetFile := os.ReadDir(FolderPath)
+	if ErrorToGetFile != nil {
+		http.Error(Write, "write file false", http.StatusBadRequest)
+		return
+	}
+	nameFile := []string{}
+	for _, itemFile := range FileArray {
+		FileName := itemFile.Name()
+		url := "http://localhost:8080/music/" + FileName
+		nameFile = append(nameFile, url)
+
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(nameFile)
+
+}
+func (Controller *SongController) GetAllSong(Write http.ResponseWriter, Req *http.Request) {
+	page := Req.URL.Query().Get("page")
+	finalPage, errorToConvert := strconv.Atoi(page)
+	if errorToConvert != nil {
+		http.Error(Write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	SongResponse, errorToGetListSong := Controller.songService.GetAllSong(finalPage)
+	if errorToGetListSong != nil {
+		http.Error(Write, "write file false", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(SongResponse)
+
+}
+func (Controller *SongController) GetSongForUserRecommend(Write http.ResponseWriter, Req *http.Request) {
+	UserId := Req.URL.Query().Get("userid")
+	Resp, ErrorToGetSong := Controller.songService.GetSongForUser(UserId)
+	if ErrorToGetSong != nil {
+		http.Error(Write, "faile", http.StatusBadRequest)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")

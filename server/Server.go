@@ -32,7 +32,10 @@ func GetNewServer(address string, database *gorm.DB) Server {
 func (server *Server) Run(address *string, databases *gorm.DB) {
 	router := mux.NewRouter()
 	database.MigrateDB(database.Database)
-	database.RunSQLFile(database.Database)
+	go func() {
+		database.RunSQLFile(database.Database)
+	}()
+
 	mainRouter := router.PathPrefix("/api").Subrouter()
 	Cors := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
@@ -41,6 +44,7 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Accept"},
 		Debug:            true,
 	})
+
 	handler := Cors.Handler(router)
 	mainRouter.Use(Cors.Handler)
 	// register route
@@ -70,5 +74,7 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	//review route
 	ReviewController := reviewcontroller.ReviewControll
 	ReviewController.RegisterRoute(mainRouter)
+	fs := http.FileServer(http.Dir("C:/Users/DPC/Desktop/MusicMp4/internal/music"))
+	router.PathPrefix("/music/").Handler(http.StripPrefix("/music/", fs))
 	http.ListenAndServe(*address, handler)
 }

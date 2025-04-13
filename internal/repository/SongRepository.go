@@ -22,6 +22,7 @@ func InitSongRepo() {
 
 type SongRepoInterface interface {
 	FindAll() ([]entity.Song, error)
+	Paginate(offset int) ([]entity.Song, error)
 	GetSongById(Id int) (entity.Song, error)
 	CreateSong(Song entity.Song) error
 	UpdateSong(Song entity.Song, id string) error
@@ -32,12 +33,24 @@ type SongRepoInterface interface {
 func (songRepository *SongRepository) FindAll() ([]entity.Song, error) {
 	Database := songRepository.DB
 	var Song []entity.Song
+
 	err := Database.Model(&entity.Song{}).Preload("SongType").Preload("Artist").Find(&Song).Error
 	if err != nil {
 		return nil, err
 	}
 	return Song, nil
 
+}
+func (songRepository *SongRepository) Paginate(page int) ([]entity.Song, error) {
+	Database := songRepository.DB
+	var Song []entity.Song
+	batchSize := 10
+	offset := (page - 1) * batchSize
+	err := Database.Model(&entity.Song{}).Limit(batchSize).Offset(offset).Preload("SongType").Preload("Artist").Find(&Song).Error
+	if err != nil {
+		return nil, err
+	}
+	return Song, nil
 }
 func (songRepository *SongRepository) GetSongById(Id int) (entity.Song, error) {
 	Database := songRepository.DB

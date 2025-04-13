@@ -11,6 +11,7 @@ import (
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
+	helper "ten_module/internal/Helper/contentbase"
 	"ten_module/internal/Helper/elastichelper"
 	"ten_module/internal/repository"
 	"time"
@@ -24,13 +25,14 @@ type SongService struct {
 }
 type SongServiceInterface interface {
 	GetSongById(Id int) (response.SongResponse, error)
-	GetAllSong() ([]response.SongResponse, error)
+	GetAllSong() ([]map[string]interface{}, error)
 	CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error)
 	DownLoadSong(Id int) (SongDownload, error)
 	GetListSongForUser(userId string) ([]response.SongResponse, error)
 	UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error)
 	UserLikeSong(SongId int, UserId string) (MessageResponse, error)
 	SearchSong(Keyword string) ([]response.SongResponse, error)
+	GetSongForUser(userId string) ([]response.SongResponse, error)
 	FilterSong()
 }
 type MessageResponse struct {
@@ -45,6 +47,8 @@ const (
 )
 
 var SongServices *SongService
+var VectorFeature []string
+var VectorAllSong map[int][]int16
 
 func InitSongService() {
 	SongServices = &SongService{
@@ -135,16 +139,32 @@ func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFil
 	}, nil
 
 }
-func (songServe *SongService) GetAllSong() ([]response.SongResponse, error) {
+func (songServe *SongService) GetAllSong(Offset int) ([]map[string]interface{}, error) {
 	SongRepos := songServe.SongRepo
-	ListSong, ErrorToGetListSong := SongRepos.FindAll()
+	ListSong, ErrorToGetListSong := SongRepos.Paginate(Offset)
 	if ErrorToGetListSong != nil {
 		log.Print(ErrorToGetListSong)
 		return nil, ErrorToGetListSong
 	}
-	ListSongResponse := []response.SongResponse{}
+	ListSongResponse := []map[string]interface{}{}
 	for _, SongItem := range ListSong {
-		ListSongResponse = append(ListSongResponse, SongEntityMapToSongResponse(SongItem))
+		SongResponseItem := SongEntityMapToSongResponse(SongItem)
+		Aritst := SongItem.Artist
+		ArtistForSong := []map[string]interface{}{}
+		for _, item := range Aritst {
+			ArtistRes := map[string]interface{}{
+				"id":          item.ID,
+				"name":        item.Name,
+				"description": item.Description,
+			}
+			ArtistForSong = append(ArtistForSong, ArtistRes)
+		}
+		Songs := map[string]interface{}{
+			"SongData": SongResponseItem,
+			"artist":   ArtistForSong,
+		}
+		ListSongResponse = append(ListSongResponse, Songs)
+
 	}
 	return ListSongResponse, nil
 }
@@ -438,4 +458,71 @@ func (SongServe *SongService) SearchSong(Keyword string) ([]response.SongRespons
 		return nil, errorToSearchSong
 	}
 	return SongResponse, nil
+}
+func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResponse, error) {
+	UserRepo := SongServe.UserRepo
+	type SongSimilarity struct {
+		ID         int
+		Similarity float64
+	}
+	vectorFeatureSong, FeatureTag, Error := helper.GetVectorFeatureForSong()
+	if Error != nil {
+		log.Print(Error)
+		return nil, Error
+	}
+	UserItem, ErrorToGetUser := UserRepo.FindById(userId)
+	if ErrorToGetUser != nil {
+		log.Print(ErrorToGetUser)
+		return nil, ErrorToGetUser
+	}
+	SongId := []int{}
+	ListenHistory := UserItem.ListenHistory
+	for _, Item := range ListenHistory {
+		SongId = append(SongId, Item.SongId)
+	}
+
+	similarityMap := map[int]float64{}
+	for _, SongIds := range SongId {
+		SongItemId := SongIds
+
+		vectorSongItemId, errorToCaculate := helper.GetVectorFeatureForUser(SongItemId, FeatureTag)
+		// fmt.Print(vectorSongItemId)
+		if errorToCaculate != nil {
+			log.Print(errorToCaculate)
+			return nil, errorToCaculate
+		}
+		for Id, vector := range vectorFeatureSong {
+			if Id == SongItemId {
+				continue
+			}
+			SimilarScore := helper.GetCosineSimilar(vectorSongItemId, vector)
+			similarityMap[Id] += SimilarScore
+		}
+	}
+	similarities := []SongSimilarity{}
+	for Id, Score := range similarityMap {
+		// fmt.Print(Score)
+		similarities = append(similarities, SongSimilarity{
+			ID:         Id,
+			Similarity: Score,
+		})
+	}
+	sort.Slice(similarities, func(i, j int) bool {
+		return similarities[i].Similarity > similarities[j].Similarity
+	})
+
+	// Lấy top 5 gợi ý (có thể điều chỉnh)
+	topN := 7
+	SongRecommendId := []response.SongResponse{}
+	for i := 0; i < topN && i < len(similarities); i++ {
+		SongEntity, errorToGetSong := SongServe.SongRepo.GetSongById(similarities[i].ID)
+		if errorToGetSong != nil {
+			log.Print(errorToGetSong)
+			return nil, errorToGetSong
+		}
+		SongResponse := SongEntityMapToSongResponse(SongEntity)
+		SongRecommendId = append(SongRecommendId, SongResponse)
+	}
+	return SongRecommendId, nil
+
 }

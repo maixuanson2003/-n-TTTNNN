@@ -49,7 +49,7 @@ func RunSQLFile(db *gorm.DB) error {
 	for _, fileItem := range fileArry {
 		filePath := filepath.Join(FolderPath, fileItem.Name())
 		fileext := filepath.Ext(filePath)
-		if fileext == "sql" {
+		if fileext == ".sql" {
 			sqlBytes, err := os.ReadFile(filePath)
 			if err != nil {
 				return err
