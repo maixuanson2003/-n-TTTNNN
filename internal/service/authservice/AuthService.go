@@ -53,6 +53,8 @@ func (Service *AuthService) Login(Request request.UserLogin) (response.AuthRespo
 	return response.AuthResponse{
 		Username: UserFind.Username,
 		Token:    tokenString,
+		Role:     UserFind.Role,
+		UserId:   UserFind.ID,
 	}, nil
 }
 func FindUserByUserName(Username string, UserArray []entity.User) *entity.User {

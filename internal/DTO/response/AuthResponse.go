@@ -4,4 +4,5 @@ type AuthResponse struct {
 	Username string
 	Token    string
 	Role     string
+	UserId   string
 }

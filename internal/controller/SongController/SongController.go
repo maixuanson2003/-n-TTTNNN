@@ -37,6 +37,7 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/geturl", Controller.GetAllUrlSong).Methods("GET")
 	r.HandleFunc("/getsongall", Controller.GetAllSong).Methods("GET")
 	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
+	r.HandleFunc("/search", Controller.SearchSongByKeyWord).Methods("GET")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -171,6 +172,17 @@ func (Controller *SongController) GetSongForUserRecommend(Write http.ResponseWri
 	Resp, ErrorToGetSong := Controller.songService.GetSongForUser(UserId)
 	if ErrorToGetSong != nil {
 		http.Error(Write, "faile", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(Resp)
+}
+func (Controller *SongController) SearchSongByKeyWord(Write http.ResponseWriter, Req *http.Request) {
+	KeyWord := Req.URL.Query().Get("keyword")
+	Resp, ErrorToSearchSong := Controller.songService.SearchSongByKeyWord(KeyWord)
+	if ErrorToSearchSong != nil {
+		http.Error(Write, "faile to search song", http.StatusBadRequest)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")

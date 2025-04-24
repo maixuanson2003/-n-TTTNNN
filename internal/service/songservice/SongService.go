@@ -34,6 +34,7 @@ type SongServiceInterface interface {
 	SearchSong(Keyword string) ([]response.SongResponse, error)
 	GetSongForUser(userId string) ([]response.SongResponse, error)
 	FilterSong()
+	SearchSongByKeyWord(keyWord string) ([]map[string]interface{}, error)
 }
 type MessageResponse struct {
 	Message string
@@ -501,7 +502,8 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	}
 	similarities := []SongSimilarity{}
 	for Id, Score := range similarityMap {
-		// fmt.Print(Score)
+		fmt.Println(Id)
+		fmt.Println(Score)
 		similarities = append(similarities, SongSimilarity{
 			ID:         Id,
 			Similarity: Score,
@@ -524,5 +526,35 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 		SongRecommendId = append(SongRecommendId, SongResponse)
 	}
 	return SongRecommendId, nil
+
+}
+func (SongServe *SongService) SearchSongByKeyWord(keyWord string) ([]map[string]interface{}, error) {
+	SongRepo := SongServe.SongRepo
+	SongResult, errorToSearchSong := SongRepo.SearchSongByKey(keyWord)
+	if errorToSearchSong != nil {
+		log.Print(errorToSearchSong)
+		return nil, errorToSearchSong
+	}
+	ListSongResponse := []map[string]interface{}{}
+	for _, SongItem := range SongResult {
+		SongResponseItem := SongEntityMapToSongResponse(SongItem)
+		Aritst := SongItem.Artist
+		ArtistForSong := []map[string]interface{}{}
+		for _, item := range Aritst {
+			ArtistRes := map[string]interface{}{
+				"id":          item.ID,
+				"name":        item.Name,
+				"description": item.Description,
+			}
+			ArtistForSong = append(ArtistForSong, ArtistRes)
+		}
+		Songs := map[string]interface{}{
+			"SongData": SongResponseItem,
+			"artist":   ArtistForSong,
+		}
+		ListSongResponse = append(ListSongResponse, Songs)
+
+	}
+	return ListSongResponse, nil
 
 }

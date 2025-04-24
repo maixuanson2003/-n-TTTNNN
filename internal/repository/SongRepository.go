@@ -28,6 +28,7 @@ type SongRepoInterface interface {
 	UpdateSong(Song entity.Song, id string) error
 	DeleteSongById(Id int) error
 	DeleteAll(User []entity.Song) error
+	SearchSongByKey(Keyword string) ([]entity.Song, error)
 }
 
 func (songRepository *SongRepository) FindAll() ([]entity.Song, error) {
@@ -93,4 +94,13 @@ func (songRepository *SongRepository) UpdateSong(Song entity.Song, id int) error
 		return errs
 	}
 	return nil
+}
+func (songRepository *SongRepository) SearchSongByKey(Keyword string) ([]entity.Song, error) {
+	Database := songRepository.DB
+	var Song []entity.Song
+	err := Database.Model(&entity.Song{}).Preload("Review").Preload("SongType").Preload("Artist").Where("name_song LIKE ?", "%"+Keyword+"%").Find(&Song).Error
+	if err != nil {
+		return nil, err
+	}
+	return Song, nil
 }
