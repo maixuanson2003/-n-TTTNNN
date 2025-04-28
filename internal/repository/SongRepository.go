@@ -107,6 +107,9 @@ func (songRepository *SongRepository) SearchSongByKey(Keyword string) ([]entity.
 func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) ([]entity.Song, error) {
 	Database := songRepository.DB
 	var Song []entity.Song
+	for _, id := range ArtistId {
+		print(id)
+	}
 	Query := Database.Model(&entity.Song{}).
 		Joins("JOIN song_artists ON song_artists.song_id=songs.id").
 		Joins("JOIN artists ON artists.id=song_artists.artist_id").
@@ -119,7 +122,7 @@ func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) (
 	if len(TypeId) > 0 {
 		Query = Query.Where("song_song_types.song_type_id IN ?", TypeId)
 	}
-	err := Query.Preload("Review").Preload("SongType").Preload("Artist").Group("song.id").Find(&Song).Error
+	err := Query.Preload("Review").Preload("SongType").Preload("Artist").Group("songs.id").Find(&Song).Error
 	if err != nil {
 		return nil, err
 	}

@@ -38,6 +38,7 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/getsongall", Controller.GetAllSong).Methods("GET")
 	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
 	r.HandleFunc("/search", Controller.SearchSongByKeyWord).Methods("GET")
+	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -188,4 +189,45 @@ func (Controller *SongController) SearchSongByKeyWord(Write http.ResponseWriter,
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(Resp)
+}
+func (Controller *SongController) FilterSong(Write http.ResponseWriter, Req *http.Request) {
+	artistIdsStr := Req.URL.Query().Get("artistId")
+	typeIdsStr := Req.URL.Query().Get("typeId")
+
+	// Xử lý artistIds
+	var artistIds []int
+	if artistIdsStr != "" {
+		artistIdsStrArr := strings.Split(artistIdsStr, ",")
+		for _, idStr := range artistIdsStrArr {
+			id, err := strconv.Atoi(idStr)
+			if err != nil {
+				http.Error(Write, "Invalid artistId", http.StatusBadRequest)
+				return
+			}
+			artistIds = append(artistIds, id)
+		}
+	}
+
+	// Xử lý typeIds
+	var typeIds []int
+	if typeIdsStr != "" {
+		typeIdsStrArr := strings.Split(typeIdsStr, ",")
+		for _, idStr := range typeIdsStrArr {
+			id, err := strconv.Atoi(idStr)
+			if err != nil {
+				http.Error(Write, "Invalid typeId", http.StatusBadRequest)
+				return
+			}
+			typeIds = append(typeIds, id)
+		}
+	}
+
+	songs, err := Controller.songService.FilterSong(artistIds, typeIds)
+	if err != nil {
+		http.Error(Write, fmt.Sprintf("Error filtering songs: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(songs)
 }

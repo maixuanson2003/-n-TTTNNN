@@ -25,7 +25,7 @@ type SongService struct {
 }
 type SongServiceInterface interface {
 	GetSongById(Id int) (response.SongResponse, error)
-	GetAllSong() ([]map[string]interface{}, error)
+	GetAllSong(Offset int) ([]map[string]interface{}, error)
 	CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error)
 	DownLoadSong(Id int) (SongDownload, error)
 	GetListSongForUser(userId string) ([]response.SongResponse, error)
@@ -33,7 +33,7 @@ type SongServiceInterface interface {
 	UserLikeSong(SongId int, UserId string) (MessageResponse, error)
 	SearchSong(Keyword string) ([]response.SongResponse, error)
 	GetSongForUser(userId string) ([]response.SongResponse, error)
-	FilterSong()
+	FilterSong(ArtistId []int, TypeId []int) ([]map[string]interface{}, error)
 	SearchSongByKeyWord(keyWord string) ([]map[string]interface{}, error)
 }
 type MessageResponse struct {
@@ -531,6 +531,36 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 func (SongServe *SongService) SearchSongByKeyWord(keyWord string) ([]map[string]interface{}, error) {
 	SongRepo := SongServe.SongRepo
 	SongResult, errorToSearchSong := SongRepo.SearchSongByKey(keyWord)
+	if errorToSearchSong != nil {
+		log.Print(errorToSearchSong)
+		return nil, errorToSearchSong
+	}
+	ListSongResponse := []map[string]interface{}{}
+	for _, SongItem := range SongResult {
+		SongResponseItem := SongEntityMapToSongResponse(SongItem)
+		Aritst := SongItem.Artist
+		ArtistForSong := []map[string]interface{}{}
+		for _, item := range Aritst {
+			ArtistRes := map[string]interface{}{
+				"id":          item.ID,
+				"name":        item.Name,
+				"description": item.Description,
+			}
+			ArtistForSong = append(ArtistForSong, ArtistRes)
+		}
+		Songs := map[string]interface{}{
+			"SongData": SongResponseItem,
+			"artist":   ArtistForSong,
+		}
+		ListSongResponse = append(ListSongResponse, Songs)
+
+	}
+	return ListSongResponse, nil
+
+}
+func (SongServe *SongService) FilterSong(ArtistId []int, TypeId []int) ([]map[string]interface{}, error) {
+	SongRepo := SongServe.SongRepo
+	SongResult, errorToSearchSong := SongRepo.FilterSong(ArtistId, TypeId)
 	if errorToSearchSong != nil {
 		log.Print(errorToSearchSong)
 		return nil, errorToSearchSong
