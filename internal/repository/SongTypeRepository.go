@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"log"
 	database "ten_module/Database"
 	entity "ten_module/internal/Entity"
 
@@ -43,4 +44,36 @@ func (songTypeRepo *SongTypeRepository) GetSongTypeById(Id int) (entity.SongType
 		return entity.SongType{}, err
 	}
 	return SongType, nil
+}
+func (songTypeRepo *SongTypeRepository) CreateSongType(SongType entity.SongType) error {
+	Database := ArtistRepo.DB
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Create(&SongType).Error
+		if err != nil {
+			return err
+
+		}
+		return nil
+
+	})
+	if errs != nil {
+		log.Print(errs)
+		return errs
+	}
+	return nil
+}
+func (songTypeRepo *SongTypeRepository) UpdateSongType(SongType entity.SongType, id int) error {
+	Database := CollectionRepo.DB
+	errs := Database.Transaction(func(tx *gorm.DB) error {
+		err := Database.Where("id=?", id).Save(&SongType).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if errs != nil {
+		log.Print(errs)
+		return errs
+	}
+	return nil
 }

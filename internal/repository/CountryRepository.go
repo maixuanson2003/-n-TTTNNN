@@ -40,7 +40,7 @@ func (CountryRepo *CountryRepository) FindAll() ([]entity.Country, error) {
 func (CountryRepo *CountryRepository) GetCountryById(Id int) (entity.Country, error) {
 	Database := CountryRepo.DB
 	var Country entity.Country
-	err := Database.Model(&entity.Album{}).Preload("Song").Preload("Artist").Where("id=?", Id).First(&Country).Error
+	err := Database.Model(&entity.Country{}).Preload("Song").Preload("Artist").Where("id=?", Id).First(&Country).Error
 	if err != nil {
 		return entity.Country{}, err
 	}

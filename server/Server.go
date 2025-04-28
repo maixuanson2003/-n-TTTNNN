@@ -11,6 +11,7 @@ import (
 	playlistcontroller "ten_module/internal/controller/PlayListController"
 	reviewcontroller "ten_module/internal/controller/ReviewController"
 	songcontroller "ten_module/internal/controller/SongController"
+	songtypecontroller "ten_module/internal/controller/SongTypeController"
 	"ten_module/internal/controller/UserController"
 
 	"github.com/gorilla/mux"
@@ -74,6 +75,9 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	//review route
 	ReviewController := reviewcontroller.ReviewControll
 	ReviewController.RegisterRoute(mainRouter)
+	// songtype route
+	SongTypeController := songtypecontroller.SongTypeControll
+	SongTypeController.RegisterRoute(mainRouter)
 	fs := http.FileServer(http.Dir("C:/Users/DPC/Desktop/MusicMp4/internal/music"))
 	router.PathPrefix("/music/").Handler(http.StripPrefix("/music/", fs))
 	http.ListenAndServe(*address, handler)

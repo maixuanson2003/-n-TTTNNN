@@ -104,3 +104,25 @@ func (songRepository *SongRepository) SearchSongByKey(Keyword string) ([]entity.
 	}
 	return Song, nil
 }
+func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) ([]entity.Song, error) {
+	Database := songRepository.DB
+	var Song []entity.Song
+	Query := Database.Model(&entity.Song{}).
+		Joins("JOIN song_artists ON song_artists.song_id=songs.id").
+		Joins("JOIN artists ON artists.id=song_artists.artist_id").
+		Joins("JOIN song_song_types ON song_song_types.song_id=songs.id").
+		Joins("JOIN song_types ON song_types.id=song_song_types.song_type_id")
+
+	if len(ArtistId) > 0 {
+		Query = Query.Where("song_artists.artist_id IN ?", ArtistId)
+	}
+	if len(TypeId) > 0 {
+		Query = Query.Where("song_song_types.song_type_id IN ?", TypeId)
+	}
+	err := Query.Preload("Review").Preload("SongType").Preload("Artist").Group("song.id").Find(&Song).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return Song, nil
+}

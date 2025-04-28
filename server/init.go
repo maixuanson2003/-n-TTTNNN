@@ -13,6 +13,7 @@ import (
 	playlistcontroller "ten_module/internal/controller/PlayListController"
 	reviewcontroller "ten_module/internal/controller/ReviewController"
 	songcontroller "ten_module/internal/controller/SongController"
+	songtypecontroller "ten_module/internal/controller/SongTypeController"
 	"ten_module/internal/controller/UserController"
 	"ten_module/internal/repository"
 	"ten_module/internal/service/authservice"
@@ -24,7 +25,7 @@ func InitSingleton() {
 	database.Init()
 	elastichelper.InitElasticHelpers()
 	// Repository
-	repository.InitUserRepo() 
+	repository.InitUserRepo()
 
 	repository.InitArtistRepository()
 
@@ -62,6 +63,8 @@ func InitSingleton() {
 	albumcontroller.InitAlbumControll()
 
 	reviewcontroller.InitReviewControll()
-	
+
 	countrycontroller.InitCountryControll()
+
+	songtypecontroller.InitSongTypeControll()
 }
