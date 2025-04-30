@@ -7,6 +7,8 @@ import (
 	entity "ten_module/internal/Entity"
 	"ten_module/internal/Helper/elastichelper"
 	"ten_module/internal/repository"
+	"ten_module/internal/service/albumservice"
+	"ten_module/internal/service/songservice"
 )
 
 type ArtistService struct {
@@ -23,6 +25,7 @@ type ArtistServiceInterface interface {
 	SearchArtist(Keyword string) ([]response.ArtistResponse, error)
 	AddArtistToElastic() error
 	CreateIndexArtistInElastic()
+	GetArtistById(artistId int) ([]map[string]interface{}, error)
 }
 
 var ArtistServe *ArtistService
@@ -85,14 +88,70 @@ func (ArtistServe *ArtistService) CreateArtist(ArtistRequest request.ArtistReque
 		Status:  "Success",
 	}, nil
 }
+
+// func (ArtistServe *ArtistService) SearchArtistByKeyWord(Keyword string) ([]response.ArtistResponse, error) {
+// 	ArtistRepo := ArtistServe.ArtistRepo
+// 	CountryRepo := ArtistServe.CountryRep
+// 	ArtistList, errorToSearch := ArtistRepo.SearchArtist(Keyword)
+// 	if errorToSearch != nil {
+// 		log.Print(errorToSearch)
+// 		return nil, errorToSearch
+// 	}
+// 	ArtitsResponse := []response.ArtistResponse{}
+// 	for _, Item := range ArtistList {
+// 		Country, errorToGetCountry := CountryRepo.GetCountryById(Item.CountryId)
+// 		if errorToGetCountry != nil {
+// 			log.Print(errorToGetCountry)
+// 			return nil, errorToGetCountry
+// 		}
+// 		ArtitsResponse = append(ArtitsResponse, MapArtistEntityToResponse(Item, Country.CountryName))
+
+// 	}
+
+//		return ArtitsResponse, nil
+//	}
 func (ArtistServe *ArtistService) SearchArtist(Keyword string) ([]response.ArtistResponse, error) {
-	Elastic := elastichelper.ElasticHelpers
-	ArtistResponse, errorToSearch := Elastic.SearchArtist(Keyword)
+	ArtistRepo := ArtistServe.ArtistRepo
+	CountryRepo := ArtistServe.CountryRep
+	ArtistList, errorToSearch := ArtistRepo.SearchArtist(Keyword)
 	if errorToSearch != nil {
 		log.Print(errorToSearch)
 		return nil, errorToSearch
 	}
-	return ArtistResponse, nil
+	ArtitsResponse := []response.ArtistResponse{}
+	for _, Item := range ArtistList {
+		Country, errorToGetCountry := CountryRepo.GetCountryById(Item.CountryId)
+		if errorToGetCountry != nil {
+			log.Print(errorToGetCountry)
+			return nil, errorToGetCountry
+		}
+		ArtitsResponse = append(ArtitsResponse, MapArtistEntityToResponse(Item, Country.CountryName))
+
+	}
+
+	return ArtitsResponse, nil
+
+}
+func (ArtistServe *ArtistService) FilterArtist(CountryId int) ([]response.ArtistResponse, error) {
+	ArtistRepo := ArtistServe.ArtistRepo
+	CountryRepo := ArtistServe.CountryRep
+	ArtistList, errorToSearch := ArtistRepo.FilterArtist(CountryId)
+	if errorToSearch != nil {
+		log.Print(errorToSearch)
+		return nil, errorToSearch
+	}
+	ArtitsResponse := []response.ArtistResponse{}
+	for _, Item := range ArtistList {
+		Country, errorToGetCountry := CountryRepo.GetCountryById(Item.CountryId)
+		if errorToGetCountry != nil {
+			log.Print(errorToGetCountry)
+			return nil, errorToGetCountry
+		}
+		ArtitsResponse = append(ArtitsResponse, MapArtistEntityToResponse(Item, Country.CountryName))
+
+	}
+
+	return ArtitsResponse, nil
 
 }
 func (ArtistServe *ArtistService) AddArtistToElastic() error {
@@ -117,4 +176,35 @@ func (ArtistServe *ArtistService) CreateIndexArtistInElastic() {
 		log.Print("da co index")
 		return
 	}
+}
+func (ArtistServe *ArtistService) GetArtistById(artistId int) (map[string]interface{}, error) {
+	ArtistRepo := ArtistServe.ArtistRepo
+	CountryRepo := ArtistServe.CountryRep
+	Artist, errorToGetArtist := ArtistRepo.GetArtistById(artistId)
+	if errorToGetArtist != nil {
+		return nil, errorToGetArtist
+	}
+	Country, errorToGetCountry := CountryRepo.GetCountryById(Artist.CountryId)
+	if errorToGetCountry != nil {
+		return nil, errorToGetCountry
+	}
+	SongList := Artist.Song
+	AlbumList := Artist.Album
+	ArtistResponse := MapArtistEntityToResponse(Artist, Country.CountryName)
+	SongResponse := []response.SongResponse{}
+	AlbumResponse := []response.AlbumResponse{}
+	for _, SongItem := range SongList {
+		SongResponse = append(SongResponse, songservice.SongEntityMapToSongResponse(SongItem))
+
+	}
+	for _, AlbumItem := range AlbumList {
+		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem))
+	}
+	response := map[string]interface{}{
+		"artist": ArtistResponse,
+		"song":   SongResponse,
+		"album":  AlbumResponse,
+	}
+	return response, nil
+
 }

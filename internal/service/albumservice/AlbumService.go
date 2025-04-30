@@ -8,7 +8,6 @@ import (
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
 	"ten_module/internal/repository"
-	"ten_module/internal/service/artistservice"
 	"ten_module/internal/service/songservice"
 	"time"
 )
@@ -44,6 +43,16 @@ type AlbumServiceInterface interface {
 	UpdateAlbum(AlbumReq request.AlbumRequest) (MessageResponse, error)
 }
 
+func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) response.ArtistResponse {
+	return response.ArtistResponse{
+		ID:          Artist.ID,
+		Name:        Artist.Name,
+		BirthDay:    Artist.BirthDay,
+		Description: Artist.Description,
+		Country:     NameCountry,
+	}
+}
+
 func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
 	SongEntity := Album.Song
 	Artist := Album.Artist
@@ -58,7 +67,7 @@ func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
 			log.Print(ErrorToGetCountry)
 			return response.AlbumResponse{}
 		}
-		ArtistResponse = append(ArtistResponse, artistservice.MapArtistEntityToResponse(ArtistItem, Country.CountryName))
+		ArtistResponse = append(ArtistResponse, MapArtistEntityToResponse(ArtistItem, Country.CountryName))
 	}
 	return response.AlbumResponse{
 		ID:          Album.ID,

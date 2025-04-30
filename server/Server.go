@@ -7,6 +7,7 @@ import (
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
 	collectioncontroller "ten_module/internal/controller/CollectionController"
+	countrycontroller "ten_module/internal/controller/CountryController"
 	historycontroller "ten_module/internal/controller/HistoryController"
 	playlistcontroller "ten_module/internal/controller/PlayListController"
 	reviewcontroller "ten_module/internal/controller/ReviewController"
@@ -78,6 +79,9 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 	// songtype route
 	SongTypeController := songtypecontroller.SongTypeControll
 	SongTypeController.RegisterRoute(mainRouter)
+	// country route
+	CountryController := countrycontroller.CountryControll
+	CountryController.RegisterRoute(mainRouter)
 	fs := http.FileServer(http.Dir("C:/Users/DPC/Desktop/MusicMp4/internal/music"))
 	router.PathPrefix("/music/").Handler(http.StripPrefix("/music/", fs))
 	http.ListenAndServe(*address, handler)

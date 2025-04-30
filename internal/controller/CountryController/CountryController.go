@@ -28,6 +28,7 @@ func (CountryControll *CountryController) RegisterRoute(r *mux.Router) {
 }
 func (CountryControll *CountryController) GetListCountry(Write http.ResponseWriter, Request *http.Request) {
 	Resp, ErrorToGetList := CountryControll.CountryService.GetListCountry()
+	print(Resp)
 	if ErrorToGetList != nil {
 		http.Error(Write, "failed to get list", http.StatusBadRequest)
 		return

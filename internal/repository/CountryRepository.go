@@ -31,7 +31,7 @@ type CountryRepositoryInterface interface {
 func (CountryRepo *CountryRepository) FindAll() ([]entity.Country, error) {
 	Database := CountryRepo.DB
 	var Country []entity.Country
-	err := Database.Model(&entity.Artist{}).Find(&Country).Error
+	err := Database.Model(&entity.Country{}).Find(&Country).Error
 	if err != nil {
 		return nil, err
 	}

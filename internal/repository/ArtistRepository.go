@@ -40,7 +40,7 @@ func (ArtistRepo *ArtistRepository) FindAll() ([]entity.Artist, error) {
 func (ArtistRepo *ArtistRepository) GetArtistById(Id int) (entity.Artist, error) {
 	Database := ArtistRepo.DB
 	var Artist entity.Artist
-	err := Database.Model(&entity.Artist{}).Preload("Album").Where("id=?", Id).First(&Artist).Error
+	err := Database.Model(&entity.Artist{}).Preload("Song").Preload("Album").Where("id=?", Id).First(&Artist).Error
 	if err != nil {
 		return entity.Artist{}, err
 	}
@@ -62,4 +62,22 @@ func (ArtistRepo *ArtistRepository) CreateArtist(Artist entity.Artist) error {
 		return errs
 	}
 	return nil
+}
+func (ArtistRepo *ArtistRepository) SearchArtist(Keyword string) ([]entity.Artist, error) {
+	Database := ArtistRepo.DB
+	var Artist []entity.Artist
+	err := Database.Model(&entity.Artist{}).Where("name LIKE ?", "%"+Keyword+"%").Find(&Artist).Error
+	if err != nil {
+		return nil, err
+	}
+	return Artist, nil
+}
+func (ArtistRepo *ArtistRepository) FilterArtist(CountryId int) ([]entity.Artist, error) {
+	Database := ArtistRepo.DB
+	var Artist []entity.Artist
+	err := Database.Model(&entity.Artist{}).Where("country_id = ?", CountryId).Find(&Artist).Error
+	if err != nil {
+		return nil, err
+	}
+	return Artist, nil
 }

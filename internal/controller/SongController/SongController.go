@@ -193,6 +193,7 @@ func (Controller *SongController) SearchSongByKeyWord(Write http.ResponseWriter,
 func (Controller *SongController) FilterSong(Write http.ResponseWriter, Req *http.Request) {
 	artistIdsStr := Req.URL.Query().Get("artistId")
 	typeIdsStr := Req.URL.Query().Get("typeId")
+	print(artistIdsStr)
 
 	// Xử lý artistIds
 	var artistIds []int

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/artistservice"
 
@@ -25,11 +27,32 @@ func (ArtController *ArtistController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/listart", ArtController.GetListArtist).Methods("GET")
 	r.HandleFunc("/createart", ArtController.CreateArtist).Methods("POST")
 	r.HandleFunc("/searchart", ArtController.SearchArtist).Methods("GET")
+	r.HandleFunc("/filterart", ArtController.FilterArtist).Methods("GET")
 	r.HandleFunc("/createindex", ArtController.CreateAritstIndexToElastic).Methods("POST")
 	r.HandleFunc("/addart", ArtController.AddAritstToElastic).Methods("POST")
+	r.HandleFunc("/artist/{id}", ArtController.GetArtistById).Methods("GET")
 }
 func (ArtController *ArtistController) GetListArtist(write http.ResponseWriter, Request *http.Request) {
 	Artist, ErrorToGetList := ArtController.ArtistService.GetListArtist()
+	if ErrorToGetList != nil {
+		log.Print(ErrorToGetList)
+		http.Error(write, "Fail to get List", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(write).Encode(Artist)
+}
+func (ArtController *ArtistController) GetArtistById(write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	AritstIdParam := strings.Split(url, "/")[3]
+	ArtistId, errorToConvert := strconv.Atoi(AritstIdParam)
+	if errorToConvert != nil {
+		log.Print(errorToConvert)
+		http.Error(write, "Fail to get artist", http.StatusBadRequest)
+		return
+	}
+	Artist, ErrorToGetList := ArtController.ArtistService.GetArtistById(ArtistId)
 	if ErrorToGetList != nil {
 		log.Print(ErrorToGetList)
 		http.Error(write, "Fail to get List", http.StatusBadRequest)
@@ -55,6 +78,24 @@ func (ArtController *ArtistController) CreateArtist(write http.ResponseWriter, R
 func (ArtController *ArtistController) SearchArtist(write http.ResponseWriter, Request *http.Request) {
 	KeyWord := Request.URL.Query().Get("keyword")
 	Resp, errorToSearchArtist := ArtController.ArtistService.SearchArtist(KeyWord)
+	if errorToSearchArtist != nil {
+		http.Error(write, "failed to search", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(write).Encode(Resp)
+
+}
+func (ArtController *ArtistController) FilterArtist(write http.ResponseWriter, Request *http.Request) {
+	CountryIdQuery := Request.URL.Query().Get("countryid")
+	CountryId, errorToConvert := strconv.Atoi(CountryIdQuery)
+	if errorToConvert != nil {
+		http.Error(write, "failed to search", http.StatusBadRequest)
+		return
+	}
+
+	Resp, errorToSearchArtist := ArtController.ArtistService.FilterArtist(CountryId)
 	if errorToSearchArtist != nil {
 		http.Error(write, "failed to search", http.StatusBadRequest)
 		return
