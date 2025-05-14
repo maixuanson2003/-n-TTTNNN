@@ -140,6 +140,51 @@ func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFil
 	}, nil
 
 }
+func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error) {
+	Song, errToGetSong := songServe.SongRepo.GetSongById(Id)
+	if errToGetSong != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, errToGetSong
+	}
+	ListSongType := []entity.SongType{}
+	ListArtist := []entity.Artist{}
+	for _, IdSongType := range SongReq.SongType {
+		SongType, err := songServe.SongTypeRepo.GetSongTypeById(IdSongType)
+		if err != nil {
+			log.Print(err)
+			return MessageResponse{}, err
+		}
+		ListSongType = append(ListSongType, SongType)
+	}
+	for _, IdArtist := range SongReq.Artist {
+		Artist, err := songServe.ArtistRepo.GetArtistById(IdArtist)
+		if err != nil {
+			log.Print(err)
+			return MessageResponse{}, err
+		}
+		ListArtist = append(ListArtist, Artist)
+	}
+	Song.SongType = ListSongType
+	Song.Artist = ListArtist
+	Song.NameSong = SongReq.NameSong
+	Song.Description = SongReq.Description
+	Song.Point = SongReq.Point
+	Song.CountryId = SongReq.CountryId
+	err := songServe.SongRepo.UpdateSong(Song, Id)
+	if err != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, err
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, err
+
+}
 func (songServe *SongService) GetAllSong(Offset int) ([]map[string]interface{}, error) {
 	SongRepos := songServe.SongRepo
 	ListSong, ErrorToGetListSong := SongRepos.Paginate(Offset)
@@ -587,4 +632,18 @@ func (SongServe *SongService) FilterSong(ArtistId []int, TypeId []int) ([]map[st
 	}
 	return ListSongResponse, nil
 
+}
+func (SongServe *SongService) DeleteSongById(id int) (MessageResponse, error) {
+	SongRepo := SongServe.SongRepo
+	err := SongRepo.DeleteSongById(id)
+	if err != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Success",
+		}, err
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, nil
 }

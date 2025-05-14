@@ -89,3 +89,18 @@ func (SongTypeServe *SongTypeService) UpdateSongType(Type string, Id int) (Messa
 		Status:  "Success",
 	}, nil
 }
+func (SongTypeServe *SongTypeService) DeleteTypeById(id int) MessageResponse {
+	SongTypeRepo := SongTypeServe.SongTypeRepo
+	err := SongTypeRepo.DeleteById(id)
+	if err != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Success",
+		}
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}
+
+}

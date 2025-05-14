@@ -77,3 +77,11 @@ func (songTypeRepo *SongTypeRepository) UpdateSongType(SongType entity.SongType,
 	}
 	return nil
 }
+func (songTypeRepo *SongTypeRepository) DeleteById(id int) error {
+	Database := SongTypeRepo.DB
+	err := Database.Delete(entity.SongType{}, id).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}

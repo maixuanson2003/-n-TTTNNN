@@ -31,6 +31,8 @@ func (ArtController *ArtistController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createindex", ArtController.CreateAritstIndexToElastic).Methods("POST")
 	r.HandleFunc("/addart", ArtController.AddAritstToElastic).Methods("POST")
 	r.HandleFunc("/artist/{id}", ArtController.GetArtistById).Methods("GET")
+	r.HandleFunc("/deleteartist/{id}", ArtController.DeletAritst).Methods("DELETE")
+	r.HandleFunc("/updateartist/{id}", ArtController.UpdateArtist).Methods("PUT")
 }
 func (ArtController *ArtistController) GetListArtist(write http.ResponseWriter, Request *http.Request) {
 	Artist, ErrorToGetList := ArtController.ArtistService.GetListArtist()
@@ -120,4 +122,43 @@ func (ArtController *ArtistController) AddAritstToElastic(write http.ResponseWri
 	write.Header().Set("Content-Type", "text/html")
 	write.WriteHeader(http.StatusAccepted)
 	write.Write([]byte(`{"message": "add succes"}`))
+}
+func (ArtController *ArtistController) DeletAritst(write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	AritstIdParam := strings.Split(url, "/")[3]
+	ArtistId, errorToConvert := strconv.Atoi(AritstIdParam)
+	if errorToConvert != nil {
+		http.Error(write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	resp, err := ArtController.ArtistService.DeleteArtist(ArtistId)
+	if err != nil {
+
+		http.Error(write, "faile to delete", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(write).Encode(resp)
+
+}
+func (ArtController *ArtistController) UpdateArtist(write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	AritstIdParam := strings.Split(url, "/")[3]
+	var artistRequest request.ArtistRequest
+	json.NewDecoder(Request.Body).Decode(&artistRequest)
+	ArtistId, errorToConvert := strconv.Atoi(AritstIdParam)
+	if errorToConvert != nil {
+		http.Error(write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	resp, err := ArtController.ArtistService.UpdateArtist(artistRequest, ArtistId)
+	if err != nil {
+
+		http.Error(write, "faile to delete", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(write).Encode(resp)
 }

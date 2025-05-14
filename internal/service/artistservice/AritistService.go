@@ -88,6 +88,30 @@ func (ArtistServe *ArtistService) CreateArtist(ArtistRequest request.ArtistReque
 		Status:  "Success",
 	}, nil
 }
+func (ArtistServe *ArtistService) UpdateArtist(ArtistRequest request.ArtistRequest, artistId int) (MessageResponse, error) {
+	ArtRepo := ArtistServe.ArtistRepo
+	Artist, err := ArtRepo.GetArtistById(artistId)
+	if err != nil {
+		log.Print(err)
+		return MessageResponse{}, err
+	}
+	Artist.Name = ArtistRequest.Name
+	Artist.BirthDay = ArtistRequest.BirthDay
+	Artist.CountryId = ArtistRequest.CountryId
+	Artist.Description = ArtistRequest.Description
+	ErrorToCreateAritst := ArtRepo.UpdateAritst(Artist, artistId)
+	if ErrorToCreateAritst != nil {
+		log.Print(ErrorToCreateAritst)
+		return MessageResponse{
+			Message: "Failed",
+			Status:  "Failed",
+		}, ErrorToCreateAritst
+	}
+	return MessageResponse{
+		Message: "Success",
+		Status:  "Success",
+	}, nil
+}
 
 // func (ArtistServe *ArtistService) SearchArtistByKeyWord(Keyword string) ([]response.ArtistResponse, error) {
 // 	ArtistRepo := ArtistServe.ArtistRepo
@@ -206,5 +230,18 @@ func (ArtistServe *ArtistService) GetArtistById(artistId int) (map[string]interf
 		"album":  AlbumResponse,
 	}
 	return response, nil
-
+}
+func (ArtistServe *ArtistService) DeleteArtist(artistId int) (MessageResponse, error) {
+	ArtistRepo := ArtistServe.ArtistRepo
+	err := ArtistRepo.DeleteArtist(artistId)
+	if err != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, err
+	}
+	return MessageResponse{
+		Message: "Success",
+		Status:  "Success",
+	}, nil
 }

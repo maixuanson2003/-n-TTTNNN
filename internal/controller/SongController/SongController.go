@@ -32,6 +32,8 @@ func InitSongController() {
 func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/song/create", Controller.CreateNewSong).Methods("POST")
 	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
+	r.HandleFunc("/getsong/{id}", Controller.GetSongById).Methods("GET")
+	r.HandleFunc("/updatesong/{id}", Controller.UpdateSong).Methods("PUT")
 	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
 	r.HandleFunc("/foruser/{id}", Controller.GetSongForUser).Methods("GET")
 	r.HandleFunc("/geturl", Controller.GetAllUrlSong).Methods("GET")
@@ -39,6 +41,7 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
 	r.HandleFunc("/search", Controller.SearchSongByKeyWord).Methods("GET")
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
+	r.HandleFunc("/delete/song", Controller.DeleteSongById).Methods("DELETE")
 }
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
@@ -64,6 +67,56 @@ func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *
 	resp, errorToCreateSong := Controller.songService.CreateNewSong(SongRequest, SongFile)
 	if errorToCreateSong != nil {
 		http.Error(Write, "failed to Song", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(resp)
+
+}
+func (Controller *SongController) UpdateSong(Write http.ResponseWriter, Req *http.Request) {
+	var SongRequest request.SongRequest
+	songDataStr := Req.FormValue("songData")
+	fmt.Println("Received songData:", songDataStr)
+	url := Req.URL.Path
+	GetSongId := strings.Split(url, "/")[3]
+	SongId, ErrorToConvertString := strconv.Atoi(GetSongId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	errorToConvert := json.Unmarshal([]byte(Req.FormValue("songData")), &SongRequest)
+	if errorToConvert != nil {
+		fmt.Print(errorToConvert)
+		http.Error(Write, "failed to Json", http.StatusBadRequest)
+		return
+	}
+	resp, errToUpdate := Controller.songService.UpdateSong(SongRequest, SongId)
+	if errToUpdate != nil {
+		fmt.Print(errToUpdate)
+		http.Error(Write, "failed to update", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(resp)
+
+}
+func (Controller *SongController) GetSongById(Write http.ResponseWriter, Req *http.Request) {
+	url := Req.URL.Path
+	fmt.Print("ssss")
+	GetSongId := strings.Split(url, "/")[3]
+	SongId, ErrorToConvertString := strconv.Atoi(GetSongId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	resp, errorToGetSong := Controller.songService.GetSongById(SongId)
+	if errorToGetSong != nil {
+		http.Error(Write, "failed to get Song", http.StatusBadRequest)
+		log.Print(errorToGetSong)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")
@@ -231,4 +284,21 @@ func (Controller *SongController) FilterSong(Write http.ResponseWriter, Req *htt
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(songs)
+}
+func (Controller *SongController) DeleteSongById(Write http.ResponseWriter, Req *http.Request) {
+	songidparam := Req.URL.Query().Get("songid")
+	songid, errors := strconv.Atoi(songidparam)
+	if errors != nil {
+		http.Error(Write, fmt.Sprintf("Error filtering songs: %s", errors.Error()), http.StatusInternalServerError)
+		return
+	}
+	resp, err := Controller.songService.DeleteSongById(songid)
+	if err != nil {
+		http.Error(Write, fmt.Sprintf("Error filtering songs: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(resp)
+
 }

@@ -7,5 +7,5 @@ type Collection struct {
 	NameCollection string
 	CreateAt       time.Time
 	UpdateAt       time.Time
-	Song           []Song `gorm:"many2many:Collection_Song;"`
+	Song           []Song `gorm:"many2many:Collection_Song;constraint:OnDelete:CASCADE;"`
 }

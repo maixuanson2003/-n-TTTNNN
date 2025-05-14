@@ -107,6 +107,7 @@ func (songRepository *SongRepository) SearchSongByKey(Keyword string) ([]entity.
 func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) ([]entity.Song, error) {
 	Database := songRepository.DB
 	var Song []entity.Song
+	print(len((ArtistId)))
 	for _, id := range ArtistId {
 		print(id)
 	}
@@ -126,6 +127,44 @@ func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) (
 	if err != nil {
 		return nil, err
 	}
+	log.Print(Song)
 
 	return Song, nil
+}
+func (songRepository *SongRepository) DeleteSongById(id int) error {
+	db := songRepository.DB
+
+	return db.Transaction(func(tx *gorm.DB) error {
+
+		if err := tx.Where("song_id = ?", id).Delete(&entity.ListenHistory{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where("song_id = ?", id).Delete(&entity.Review{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec("DELETE FROM song_song_types WHERE song_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM song_artists WHERE song_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM user_likes WHERE song_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM play_list_songs WHERE song_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM collection_songs WHERE song_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// Cuối cùng xóa bài hát
+		if err := tx.Delete(&entity.Song{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
