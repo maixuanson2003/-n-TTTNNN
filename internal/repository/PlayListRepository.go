@@ -92,3 +92,16 @@ func (PlayListRepo *PlayListRepository) DeleteSong(SongId int, PlayListId int) e
 	}
 	return nil
 }
+func (PlayListRepo *PlayListRepository) DeletePlaylist(PlayListId int) error {
+	Database := PlayListRepo.DB
+	var PlayList entity.PlayList
+	errorToFindPlayList := Database.Preload("Song").Where("id=?", PlayListId).First(&PlayList, PlayListId).Error
+	if errorToFindPlayList != nil {
+		return errorToFindPlayList
+	}
+	errorToDeleteSongFromPlayList := Database.Select("Song").Delete(&PlayList).Error
+	if errorToDeleteSongFromPlayList != nil {
+		return errorToDeleteSongFromPlayList
+	}
+	return nil
+}

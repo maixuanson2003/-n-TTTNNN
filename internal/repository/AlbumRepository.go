@@ -79,3 +79,40 @@ func (AlbumRepo *AlbumRepository) UpdateAlbum(Album entity.Album, id int) error 
 	}
 	return nil
 }
+func (AlbumRepo *AlbumRepository) DeleteAlbumById(Id int) error {
+	Database := AlbumRepo.DB
+	var Album entity.Album
+	err := Database.Preload("Song").Preload("Artist").First(&Album, Id).Error
+
+	if err != nil {
+		return err
+	}
+	for _, Song := range Album.Song {
+		var SongHandle entity.Song
+		errs := Database.
+			Preload("SongType").
+			Preload("ListenHistory").
+			Preload("Review").
+			Preload("Artist").
+			Preload("User").
+			Preload("PlayList").
+			Preload("Collection").
+			First(&SongHandle, Song.ID).Error
+		if errs != nil {
+			return errs
+		}
+		errsDelete := Database.
+			Select("SongType", "ListenHistory", "Review", "Artist", "User", "PlayList", "Collection").
+			Delete(&SongHandle).Error
+		if errsDelete != nil {
+			return errsDelete
+		}
+
+	}
+	errors := Database.Select("Song", "Artist").Delete(&Album).Error
+	if errors != nil {
+		return errors
+	}
+	return nil
+
+}

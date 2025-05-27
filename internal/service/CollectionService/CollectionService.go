@@ -138,3 +138,18 @@ func (CollectionServe *CollectionService) DeleteSongFromCollection(SongId int, C
 		Status:  "Success",
 	}, nil
 }
+func (CollectionServe *CollectionService) DeleteCollectionByIds(CollectionId int) (MessageResponse, error) {
+	CollectionRepo := CollectionServe.CollectionRepo
+	errorToDelete := CollectionRepo.DeleteCollectById(CollectionId)
+	if errorToDelete != nil {
+		log.Print(errorToDelete)
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, errorToDelete
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, nil
+}

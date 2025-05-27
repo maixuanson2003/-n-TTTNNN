@@ -91,6 +91,16 @@ func (CollectionRepo *CollectionRepostiory) DeleteSong(SongId int, CollectionId 
 	return nil
 }
 
-// func (CollectionRepo *CollectionRepostiory) DeleteCollectById(Id int) error {
-
-// }
+func (CollectionRepo *CollectionRepostiory) DeleteCollectById(Id int) error {
+	Database := CollectionRepo.DB
+	var collection entity.Collection
+	err := Database.Preload("Song").First(&collection, Id).Error
+	if err != nil {
+		return err
+	}
+	errors := Database.Select("Song").Delete(&collection).Error
+	if errors != nil {
+		return errors
+	}
+	return nil
+}

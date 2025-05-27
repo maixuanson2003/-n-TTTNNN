@@ -222,7 +222,7 @@ func (ArtistServe *ArtistService) GetArtistById(artistId int) (map[string]interf
 
 	}
 	for _, AlbumItem := range AlbumList {
-		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem))
+		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem, ArtistServe.CountryRep))
 	}
 	response := map[string]interface{}{
 		"artist": ArtistResponse,

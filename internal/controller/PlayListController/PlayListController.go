@@ -2,6 +2,7 @@ package playlistcontroller
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ func (Controller *PlayListController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createplay", Controller.CreatePlayList).Methods("POST")
 	r.HandleFunc("/addsong", Controller.AddSongToPlayList).Methods("PUT")
 	r.HandleFunc("/deletesong", Controller.DeletSongFromPlaylist).Methods("DELETE")
+	r.HandleFunc("/deleteplaylist/{id}", Controller.DeletePlayList).Methods("DELETE")
 
 }
 func (Controller *PlayListController) GetPlayListByUser(Write http.ResponseWriter, Request *http.Request) {
@@ -110,4 +112,22 @@ func (Controller *PlayListController) DeletSongFromPlaylist(Write http.ResponseW
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(Resp)
+}
+func (Controller *PlayListController) DeletePlayList(Write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	PlayListIdparam := strings.Split(url, "/")[3]
+	PlayListId, errorToConvert := strconv.Atoi(PlayListIdparam)
+	if errorToConvert != nil {
+		http.Error(Write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	resp, err := Controller.PlayListServ.DeletePlayList(PlayListId)
+	if err != nil {
+		log.Print(err)
+		http.Error(Write, "failed delete album by  id", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(resp)
 }

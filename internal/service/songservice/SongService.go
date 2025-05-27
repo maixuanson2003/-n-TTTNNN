@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"sort"
@@ -22,6 +23,7 @@ type SongService struct {
 	SongRepo     *repository.SongRepository
 	SongTypeRepo *repository.SongTypeRepository
 	ArtistRepo   *repository.ArtistRepository
+	HisRepo      *repository.ListenHistoryRepo
 }
 type SongServiceInterface interface {
 	GetSongById(Id int) (response.SongResponse, error)
@@ -57,6 +59,7 @@ func InitSongService() {
 		SongRepo:     repository.SongRepo,
 		SongTypeRepo: repository.SongTypeRepo,
 		ArtistRepo:   repository.ArtistRepo,
+		HisRepo:      repository.ListenRepo,
 	}
 }
 func SongReqMapToSongEntity(SongReq request.SongRequest, resource string, ListSongType []entity.SongType, ListArtist []entity.Artist) entity.Song {
@@ -340,6 +343,7 @@ func GetTrueResult(Response []response.SongResponse) []response.SongResponse {
 func (songServe *SongService) GetListSongForUser(userId string) ([]response.SongResponse, error) {
 	UserRepo := songServe.UserRepo
 	SongRepo := songServe.SongRepo
+
 	SongTypeRepo := songServe.SongTypeRepo
 	SongResponse := []response.SongResponse{}
 	UserById, ErrorToGetUser := UserRepo.FindById(userId)
@@ -507,6 +511,7 @@ func (SongServe *SongService) SearchSong(Keyword string) ([]response.SongRespons
 }
 func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResponse, error) {
 	UserRepo := SongServe.UserRepo
+	ListenRepos := SongServe.HisRepo
 	type SongSimilarity struct {
 		ID         int
 		Similarity float64
@@ -530,9 +535,12 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	similarityMap := map[int]float64{}
 	for _, SongIds := range SongId {
 		SongItemId := SongIds
-
+		count, err := ListenRepos.CountNumberSongId(SongIds)
+		if err != nil {
+			log.Print(err)
+			return nil, err
+		}
 		vectorSongItemId, errorToCaculate := helper.GetVectorFeatureForUser(SongItemId, FeatureTag)
-		// fmt.Print(vectorSongItemId)
 		if errorToCaculate != nil {
 			log.Print(errorToCaculate)
 			return nil, errorToCaculate
@@ -542,13 +550,12 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 				continue
 			}
 			SimilarScore := helper.GetCosineSimilar(vectorSongItemId, vector)
-			similarityMap[Id] += SimilarScore
+			weightedSimilarity := SimilarScore * math.Sqrt(float64(count))
+			similarityMap[Id] += weightedSimilarity
 		}
 	}
 	similarities := []SongSimilarity{}
 	for Id, Score := range similarityMap {
-		fmt.Println(Id)
-		fmt.Println(Score)
 		similarities = append(similarities, SongSimilarity{
 			ID:         Id,
 			Similarity: Score,
@@ -562,6 +569,8 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	topN := 7
 	SongRecommendId := []response.SongResponse{}
 	for i := 0; i < topN && i < len(similarities); i++ {
+		fmt.Print(similarities[i].Similarity, " ", similarities[i].ID)
+		fmt.Print(" ")
 		SongEntity, errorToGetSong := SongServe.SongRepo.GetSongById(similarities[i].ID)
 		if errorToGetSong != nil {
 			log.Print(errorToGetSong)

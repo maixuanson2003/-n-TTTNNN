@@ -1,6 +1,8 @@
 package response
 
 type UserResponse struct {
+	ID       string
+	Username string
 	Phone    string
 	Email    string
 	FullName string

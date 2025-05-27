@@ -87,23 +87,25 @@ func (instance *UserRepository) Update(User entity.User, id string) error {
 	return nil
 }
 func (instance *UserRepository) DeleteById(Id string) error {
-	Database := instance.DB
-	err := Database.Transaction(func(tx *gorm.DB) error {
-		ErrorDeleteRecord := Database.Where("user_id= ?", Id).Delete(&entity.ListenHistory{}).Error
-		if ErrorDeleteRecord != nil {
-			return ErrorDeleteRecord
+	db := instance.DB
 
-		}
-		ErrorFinalDelete := Database.Where("id = ?", Id).Delete(&entity.User{}).Error
-		if ErrorFinalDelete != nil {
-			return ErrorFinalDelete
-		}
-		return nil
-	})
-	if err != nil {
-		log.Print(err)
-		return err
+	var user entity.User
+	errFind := db.Preload("ListenHistory").
+		Preload("Song").
+		Preload("PlayList").
+		Preload("Review").
+		Where("id = ?", Id).
+		First(&user).Error
+
+	if errFind != nil {
+		return errFind
 	}
+
+	errDelete := db.Select("ListenHistory", "Song", "PlayList", "Review").Delete(&user).Error
+	if errDelete != nil {
+		return errDelete
+	}
+
 	return nil
 
 }

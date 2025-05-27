@@ -140,3 +140,15 @@ func (playlistService *PlayListService) DeleteSongFromPlayList(SongId int, PlayL
 		Status:  "Success",
 	}, nil
 }
+func (playlistService *PlayListService) DeletePlayList(PlayListId int) (MessageResponse, error) {
+	PlayListRepo := playlistService.PlayListRepo
+	err := PlayListRepo.DeletePlaylist(PlayListId)
+	if err != nil {
+		return MessageResponse{}, err
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, nil
+
+}

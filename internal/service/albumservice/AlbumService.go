@@ -32,6 +32,7 @@ func InitAlbumSerivce() {
 		AlbumRepo:    repository.AlbumRepo,
 		SongRepo:     repository.SongRepo,
 		SongTypeRepo: repository.SongTypeRepo,
+		CountryRepo:  repository.CountryRepo,
 	}
 }
 
@@ -53,7 +54,7 @@ func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) respons
 	}
 }
 
-func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
+func AlbumEntityMapToAlbumResponse(Album entity.Album, countryRepo *repository.CountryRepository) response.AlbumResponse {
 	SongEntity := Album.Song
 	Artist := Album.Artist
 	ArtistResponse := []response.ArtistResponse{}
@@ -62,7 +63,7 @@ func AlbumEntityMapToAlbumResponse(Album entity.Album) response.AlbumResponse {
 		SongResponse = append(SongResponse, songservice.SongEntityMapToSongResponse(SongItem))
 	}
 	for _, ArtistItem := range Artist {
-		Country, ErrorToGetCountry := AlbumServe.CountryRepo.GetCountryById(ArtistItem.CountryId)
+		Country, ErrorToGetCountry := countryRepo.GetCountryById(ArtistItem.CountryId)
 		if ErrorToGetCountry != nil {
 			log.Print(ErrorToGetCountry)
 			return response.AlbumResponse{}
@@ -188,7 +189,7 @@ func (AlbumServe *AlbumSerivce) GetListAlbum() ([]response.AlbumResponse, error)
 	}
 	AlbumListResponse := []response.AlbumResponse{}
 	for _, AlbumItem := range AlbumList {
-		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(AlbumItem))
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo))
 	}
 	return AlbumListResponse, nil
 }
@@ -200,7 +201,7 @@ func (AlbumServe *AlbumSerivce) GetAlbumById(Id int) (response.AlbumResponse, er
 		return response.AlbumResponse{}, ErrorToGetAlbum
 
 	}
-	AlbumRespone := AlbumEntityMapToAlbumResponse(AlbumItem)
+	AlbumRespone := AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo)
 	return AlbumRespone, nil
 }
 func (AlbumServe *AlbumSerivce) GetAlbumByArtist(artistId int) ([]response.AlbumResponse, error) {
@@ -219,7 +220,18 @@ func (AlbumServe *AlbumSerivce) GetAlbumByArtist(artistId int) ([]response.Album
 			log.Print(Error)
 			return nil, Error
 		}
-		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(Album))
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(Album, AlbumServe.CountryRepo))
 	}
 	return AlbumListResponse, nil
+}
+func (AlbumServe *AlbumSerivce) DeleteAlbum(albumId int) (MessageResponse, error) {
+	AlbumRepo := AlbumServe.AlbumRepo
+	err := AlbumRepo.DeleteAlbumById(albumId)
+	if err != nil {
+		return MessageResponse{}, err
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, nil
 }

@@ -40,11 +40,14 @@ func GetUserController(Database *gorm.DB) UserController {
 func (userController *UserController) RegisterRoute(r *mux.Router) {
 	middleware := userController.MiddleWare
 	r.HandleFunc("/register", userController.UserRegister).Methods("POST")
+	r.HandleFunc("/createuser", userController.UserCreate).Methods("POST")
 	r.HandleFunc("/all", userController.GetListUser).Methods("GET")
 	r.HandleFunc("/user/{id}", middleware.Chain(userController.DeleteUserById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/search", middleware.Chain(userController.SearchUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("POST")
-	r.HandleFunc("/update/{id}", middleware.Chain(userController.UpdateUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
+	// r.HandleFunc("/update/{id}", middleware.Chain(userController.UpdateUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
+	r.HandleFunc("/update/{id}", userController.UpdateUser).Methods("PUT")
 	r.HandleFunc("/getuser/{id}", userController.GetUserById).Methods("GET")
+	r.HandleFunc("/deleteuser/{id}", userController.DeleteUserById).Methods("DELETE")
 }
 func (userController *UserController) UserRegister(write http.ResponseWriter, Request *http.Request) {
 	var Body request.UserRequest
@@ -54,7 +57,24 @@ func (userController *UserController) UserRegister(write http.ResponseWriter, Re
 		return
 	}
 
-	Resp, err := userController.UserService.UserRegister(Body)
+	Resp, err := userController.UserService.UserRegister(Body, "user")
+	if err != nil {
+		http.Error(write, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(Resp)
+
+}
+func (userController *UserController) UserCreate(write http.ResponseWriter, Request *http.Request) {
+	var Body request.UserRequest
+	err := json.NewDecoder(Request.Body).Decode(&Body)
+	if err != nil {
+		http.Error(write, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	Resp, err := userController.UserService.UserRegister(Body, "admin")
 	if err != nil {
 		http.Error(write, "Invalid request payload", http.StatusBadRequest)
 		return
@@ -127,7 +147,7 @@ func (userController *UserController) UpdateUser(write http.ResponseWriter, Requ
 		http.Error(write, "failel To call Api", http.StatusBadRequest)
 		return
 	}
-	var UserRequest request.UserRequest
+	var UserRequest request.UserUpdate
 	err := json.NewDecoder(Request.Body).Decode(&UserRequest)
 	if err != nil {
 		http.Error(write, "failel To call Api", http.StatusBadRequest)

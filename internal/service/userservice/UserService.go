@@ -59,6 +59,8 @@ func UserReqMapToUserEntity(UserReq request.UserRequest, Byte []byte) entity.Use
 }
 func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
 	return response.UserResponse{
+		ID:       user.ID,
+		Username: user.Username,
 		Phone:    user.Phone,
 		FullName: user.FullName,
 		Email:    user.Email,
@@ -68,7 +70,7 @@ func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
 		Role:     user.Role,
 	}
 }
-func (service *UserService) UserRegister(UserReq request.UserRequest) (MessageResponse, error) {
+func (service *UserService) UserRegister(UserReq request.UserRequest, types string) (MessageResponse, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(UserReq.Password), 14)
 	if err != nil {
 		log.Print(" khong hash duoc mat khau")
@@ -81,6 +83,10 @@ func (service *UserService) UserRegister(UserReq request.UserRequest) (MessageRe
 		return MessageResponse{}, errors.New("not enough data")
 	}
 	User := UserReqMapToUserEntity(UserReq, bytes)
+	if types == "user" {
+		User.Role = string(constants.USER)
+	}
+
 	repo := service.UserRepo
 	errs := repo.Create(User)
 	if errs != nil {
@@ -137,7 +143,7 @@ func (service *UserService) DeleteUserById(Id string) (MessageResponse, error) {
 		Message: "Ok",
 	}, nil
 }
-func (service *UserService) UpdateUser(UserReq request.UserRequest, Id string) (MessageResponse, error) {
+func (service *UserService) UpdateUser(UserReq request.UserUpdate, Id string) (MessageResponse, error) {
 	repo := service.UserRepo
 	User, checkFaild := repo.FindById(Id)
 	if checkFaild != nil {
@@ -163,6 +169,7 @@ func (service *UserService) UpdateUser(UserReq request.UserRequest, Id string) (
 			Message: "not valid Phone Number",
 		}, errors.New("not valid Phone Number")
 	}
+	User.Username = UserReq.Username
 	User.Phone = UserReq.Phone
 	User.Address = UserReq.Address
 	User.Age = UserReq.Age

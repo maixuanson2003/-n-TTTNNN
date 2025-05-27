@@ -43,3 +43,15 @@ func (HisRepo *ListenHistoryRepo) CreateHistory(History entity.ListenHistory) er
 	}
 	return nil
 }
+func (HisRepo *ListenHistoryRepo) CountNumberSongId(songId int) (int64, error) {
+	Database := HisRepo.DB
+	var count int64
+	err := Database.Model(&entity.ListenHistory{}).
+		Where("song_id = ?", songId).
+		Count(&count).Error
+
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

@@ -45,7 +45,7 @@ func (songRepository *SongRepository) FindAll() ([]entity.Song, error) {
 func (songRepository *SongRepository) Paginate(page int) ([]entity.Song, error) {
 	Database := songRepository.DB
 	var Song []entity.Song
-	batchSize := 10
+	batchSize := 4
 	offset := (page - 1) * batchSize
 	err := Database.Model(&entity.Song{}).Limit(batchSize).Offset(offset).Preload("SongType").Preload("Artist").Find(&Song).Error
 	if err != nil {

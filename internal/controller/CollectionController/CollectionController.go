@@ -27,7 +27,9 @@ func (CollectionControll *CollectionController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createcollect", CollectionControll.CreateCollection).Methods("POST")
 	r.HandleFunc("/addtocollect", CollectionControll.AddSongToCollection).Methods("PUT")
 	r.HandleFunc("/deletesongcollect", CollectionControll.DeleteSongFromCollect).Methods("DELETE")
+	r.HandleFunc("/deletecollect/{id}", CollectionControll.DeleteCollection).Methods("DELETE")
 }
+
 func (CollectionControll *CollectionController) GetListCollection(Write http.ResponseWriter, Request *http.Request) {
 	Resp, ErrorToGetCollect := CollectionControll.CollectionService.GetListCollection()
 	if ErrorToGetCollect != nil {
@@ -110,4 +112,21 @@ func (CollectionControll *CollectionController) DeleteSongFromCollect(Write http
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(Write).Encode(Resp)
+}
+func (CollectionControll *CollectionController) DeleteCollection(Write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	GetCollectionId := strings.Split(url, "/")[3]
+	CollectionId, ErrorToConvertString := strconv.Atoi(GetCollectionId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to get  collect", http.StatusBadRequest)
+		return
+	}
+	resp, err := CollectionControll.CollectionService.DeleteCollectionByIds(CollectionId)
+	if err != nil {
+		http.Error(Write, "Failed to delete collection", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(resp)
 }

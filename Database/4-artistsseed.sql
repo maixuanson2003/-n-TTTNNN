@@ -38,4 +38,12 @@ INSERT IGNORE  INTO artists (id, name, birth_day, description, country_id) VALUE
 (30,"Avi",'2000-01-12','ssss',2),
 (31,"Drum7",'2000-01-12','ssss',2),
 (32,"Đức Phúc",'2000-01-12','ssss',2),
-(33,"Đan Tiên",'2000-01-12','ssss',2);
+(33,"Đan Tiên",'2000-01-12','ssss',2),
+(34, 'Da Hool', '1968-12-30', 'DJ và producer người Đức nổi tiếng với nhạc điện tử.', 3),
+(35, 'The Chainsmokers', '1985-05-16', 'Bộ đôi EDM người Mỹ nổi tiếng với nhiều bản hit.', 1),
+(36, 'Daya', '1998-10-24', 'Ca sĩ người Mỹ hợp tác trong bản hit Don’t Let Me Down.', 1),
+(37, 'Ely Oaks', '1995-07-12', 'Producer dòng nhạc DnB/EDM.', 1),
+(38, 'Tate McRae', '2003-07-01', 'Ca sĩ kiêm vũ công người Canada.', 1),
+(39, 'Madonna', '1958-08-16', 'Nữ hoàng nhạc pop.', 1),
+(40, 'Playboi Carti', '1996-09-13', 'Rapper người Mỹ.', 1),
+(41, 'Tove Lo', '1987-10-29', 'Ca sĩ người Thụy Điển nổi tiếng với phong cách electropop.', 4);

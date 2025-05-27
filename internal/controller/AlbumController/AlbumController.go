@@ -25,9 +25,10 @@ func InitAlbumController() {
 }
 func (AlbumControll *AlbumController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createalbum", AlbumControll.CreateAlbum).Methods("POST")
-	r.HandleFunc("/album/getlist", AlbumControll.GetListAlbum).Methods("GET")
+	r.HandleFunc("/album/getlist", AlbumControll.GetListAlbums).Methods("GET")
 	r.HandleFunc("/album/{id}", AlbumControll.GetAlbumById).Methods("GET")
 	r.HandleFunc("/getalbum/artist", AlbumControll.GetAlbumByArtist).Methods("GET")
+	r.HandleFunc("/deletealbum/{id}", AlbumControll.DeleteAlbumById).Methods("DELETE")
 
 }
 func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Request *http.Request) {
@@ -77,7 +78,7 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 	Write.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(Write).Encode(Resp)
 }
-func (AlbumControll *AlbumController) GetListAlbum(Write http.ResponseWriter, Request *http.Request) {
+func (AlbumControll *AlbumController) GetListAlbums(Write http.ResponseWriter, Request *http.Request) {
 	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetListAlbum()
 	if ErrorToGetAlbum != nil {
 		log.Print(ErrorToGetAlbum)
@@ -129,4 +130,22 @@ func (AlbumControll *AlbumController) GetAlbumByArtist(Write http.ResponseWriter
 	Write.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(Write).Encode(Resp)
 
+}
+func (AlbumControll *AlbumController) DeleteAlbumById(Write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	AlbumIdParam := strings.Split(url, "/")[3]
+	AlbumId, errorToConvert := strconv.Atoi(AlbumIdParam)
+	if errorToConvert != nil {
+		http.Error(Write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	resp, err := AlbumControll.AlbumServe.DeleteAlbum(AlbumId)
+	if err != nil {
+		log.Print(err)
+		http.Error(Write, "failed delete album by  id", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(resp)
 }
