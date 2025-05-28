@@ -39,7 +39,7 @@ func (AlbumRepo *AlbumRepository) FindAll() ([]entity.Album, error) {
 
 }
 func (AlbumRepo *AlbumRepository) GetAlbumById(Id int) (entity.Album, error) {
-	Database := ArtistRepo.DB
+	Database := AlbumRepo.DB
 	var Album entity.Album
 	err := Database.Model(&entity.Album{}).Preload("Song").Preload("Artist").Where("id=?", Id).First(&Album).Error
 	if err != nil {

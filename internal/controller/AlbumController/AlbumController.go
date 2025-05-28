@@ -2,6 +2,7 @@ package albumcontroller
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/albumservice"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 )
 
@@ -23,12 +25,16 @@ func InitAlbumController() {
 		AlbumServe: albumservice.AlbumServe,
 	}
 }
+
+var validate = validator.New()
+
 func (AlbumControll *AlbumController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/createalbum", AlbumControll.CreateAlbum).Methods("POST")
 	r.HandleFunc("/album/getlist", AlbumControll.GetListAlbums).Methods("GET")
 	r.HandleFunc("/album/{id}", AlbumControll.GetAlbumById).Methods("GET")
 	r.HandleFunc("/getalbum/artist", AlbumControll.GetAlbumByArtist).Methods("GET")
 	r.HandleFunc("/deletealbum/{id}", AlbumControll.DeleteAlbumById).Methods("DELETE")
+	r.HandleFunc("/updatealbum/{id}", AlbumControll.UpdateAlbum).Methods("PUT")
 
 }
 func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Request *http.Request) {
@@ -36,6 +42,17 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 	var SongFileReq []request.SongFileAlbum
 	AlbumRequest := Request.FormValue("album_request")
 	ErrorToConvert := json.Unmarshal([]byte(AlbumRequest), &AlbumReq)
+	errorsToValidate := validate.Struct(AlbumReq)
+	if errorsToValidate != nil {
+		validationErrors := errorsToValidate.(validator.ValidationErrors)
+		var errorMsg string
+		for _, e := range validationErrors {
+			errorMsg += fmt.Sprintf("Trường '%s' không hợp lệ (%s); ", e.Field(), e.Tag())
+		}
+		http.Error(Write, errorMsg, http.StatusBadRequest)
+
+		return
+	}
 	if ErrorToConvert != nil {
 		log.Print("ss")
 		log.Print(ErrorToConvert)
@@ -91,8 +108,10 @@ func (AlbumControll *AlbumController) GetListAlbums(Write http.ResponseWriter, R
 }
 func (AlbumControll *AlbumController) GetAlbumById(Write http.ResponseWriter, Request *http.Request) {
 	url := Request.URL.Path
+	log.Print(url)
 	TakeAlbumId := strings.Split(url, "/")[3]
 	AlbumId, ErrorToConvertToNumber := strconv.Atoi(TakeAlbumId)
+	log.Print(AlbumId)
 	if ErrorToConvertToNumber != nil {
 		log.Print(ErrorToConvertToNumber)
 		http.Error(Write, "failed to convert to int", http.StatusBadRequest)
@@ -143,6 +162,30 @@ func (AlbumControll *AlbumController) DeleteAlbumById(Write http.ResponseWriter,
 	if err != nil {
 		log.Print(err)
 		http.Error(Write, "failed delete album by  id", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(Write).Encode(resp)
+}
+func (AlbumControll *AlbumController) UpdateAlbum(Write http.ResponseWriter, Request *http.Request) {
+	url := Request.URL.Path
+	AlbumIdParam := strings.Split(url, "/")[3]
+	AlbumId, errorToConvert := strconv.Atoi(AlbumIdParam)
+	if errorToConvert != nil {
+		http.Error(Write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	var AlbumUpdate request.AlbumUpdate
+	errs := json.NewDecoder(Request.Body).Decode(&AlbumUpdate)
+	if errs != nil {
+		log.Print(errs)
+		http.Error(Write, "faile to convert", http.StatusBadRequest)
+		return
+	}
+	resp, errorsToUpdate := AlbumControll.AlbumServe.UpdateAlbum(AlbumUpdate, AlbumId)
+	if errorsToUpdate != nil {
+		http.Error(Write, "update failed", http.StatusBadRequest)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")

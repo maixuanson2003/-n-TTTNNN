@@ -13,6 +13,7 @@ import (
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/songservice"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 )
 
@@ -43,12 +44,27 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
 	r.HandleFunc("/delete/song", Controller.DeleteSongById).Methods("DELETE")
 }
+
+var validate = validator.New()
+
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
 	songDataStr := Req.FormValue("songData")
-	fmt.Println("Received songData:", songDataStr) // 🔍 In ra để debug
+	fmt.Println("Received songData:", songDataStr)
 
 	errorToConvert := json.Unmarshal([]byte(Req.FormValue("songData")), &SongRequest)
+	errorsToValidate := validate.Struct(SongRequest)
+	if errorsToValidate != nil {
+		validationErrors := errorsToValidate.(validator.ValidationErrors)
+		var errorMsg string
+		for _, e := range validationErrors {
+			errorMsg += fmt.Sprintf("Trường '%s' không hợp lệ (%s); ", e.Field(), e.Tag())
+		}
+		log.Print(errorMsg)
+		http.Error(Write, errorMsg, http.StatusBadRequest)
+
+		return
+	}
 	fmt.Println(SongRequest)
 	Files, _, errorToGetFile := Req.FormFile("file")
 	SongFile := request.SongFile{

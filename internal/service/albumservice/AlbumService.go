@@ -235,3 +235,28 @@ func (AlbumServe *AlbumSerivce) DeleteAlbum(albumId int) (MessageResponse, error
 		Status:  "Success",
 	}, nil
 }
+func (AlbumServe *AlbumSerivce) UpdateAlbum(AlbumReq request.AlbumUpdate, Id int) (MessageResponse, error) {
+	AlbumRepo := AlbumServe.AlbumRepo
+	AlbumItem, errors := AlbumRepo.GetAlbumById(Id)
+	if errors != nil {
+		log.Print(errors)
+		return MessageResponse{}, errors
+	}
+	AlbumItem.ArtistOwner = AlbumReq.ArtistOwner
+	AlbumItem.Description = AlbumReq.Description
+	AlbumItem.NameAlbum = AlbumReq.NameAlbum
+	AlbumItem.ReleaseDay = AlbumReq.ReleaseDay
+	errorsToUpdate := AlbumRepo.UpdateAlbum(AlbumItem, Id)
+	if errorsToUpdate != nil {
+		log.Print(errorsToUpdate)
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, errorsToUpdate
+	}
+	return MessageResponse{
+		Message: "success",
+		Status:  "Success",
+	}, nil
+
+}
