@@ -49,8 +49,8 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 		for _, e := range validationErrors {
 			errorMsg += fmt.Sprintf("Trường '%s' không hợp lệ (%s); ", e.Field(), e.Tag())
 		}
+		log.Print(errorMsg)
 		http.Error(Write, errorMsg, http.StatusBadRequest)
-
 		return
 	}
 	if ErrorToConvert != nil {

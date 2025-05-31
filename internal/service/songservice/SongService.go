@@ -116,32 +116,35 @@ func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFil
 		}
 		ListArtist = append(ListArtist, Artist)
 	}
-	resourceSong, err := Config.HandleUpLoadFile(SongFile.File, SongReq.NameSong)
-	if SongReq.NameSong == "" {
-		return MessageResponse{
-			Message: "Failed to create",
-			Status:  "Failed",
-		}, errors.New("name song is empty")
-	}
-	if err != nil {
-		return MessageResponse{
-			Message: "Failed to create",
-			Status:  "Failed",
-		}, err
-	}
-	SongEntity := SongReqMapToSongEntity(SongReq, resourceSong, ListSongType, ListArtist)
-	errorToCreateSong := songServe.SongRepo.CreateSong(SongEntity)
-	if errorToCreateSong != nil {
-		return MessageResponse{
-			Message: "failed to create song",
-			Status:  "failed",
-		}, errorToCreateSong
-	}
+	go func() {
+		errs := songServe.UpLoadSongBackground(SongReq, SongFile, ListSongType, ListArtist)
+		if errs != nil {
+			log.Print("some thing wrong")
+		}
+		log.Print("upload success")
+
+	}()
 	return MessageResponse{
 		Message: "Success to create song",
 		Status:  "Success",
 	}, nil
 
+}
+func (songServe *SongService) UpLoadSongBackground(SongReq request.SongRequest, SongFile request.SongFile, ListSongType []entity.SongType, ListArtist []entity.Artist) error {
+	errorRes := errors.New("check")
+	resourceSong, err := Config.HandleUpLoadFile(SongFile.File, SongReq.NameSong)
+	if SongReq.NameSong == "" {
+		errorRes = errors.New("require name song")
+	}
+	if err != nil {
+		errorRes = err
+	}
+	SongEntity := SongReqMapToSongEntity(SongReq, resourceSong, ListSongType, ListArtist)
+	errorToCreateSong := songServe.SongRepo.CreateSong(SongEntity)
+	if errorToCreateSong != nil {
+		errorRes = errorToCreateSong
+	}
+	return errorRes
 }
 func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error) {
 	Song, errToGetSong := songServe.SongRepo.GetSongById(Id)

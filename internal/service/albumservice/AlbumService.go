@@ -84,8 +84,6 @@ func AlbumEntityMapToAlbumResponse(Album entity.Album, countryRepo *repository.C
 }
 func (AlbumServe *AlbumSerivce) CreateAlbum(AlbumReq request.AlbumRequest, SongFileAlum []request.SongFileAlbum) (MessageResponse, error) {
 	AlbumRepo := AlbumServe.AlbumRepo
-	ArtistRepo := AlbumServe.ArtistRepo
-	SongTypeRepo := AlbumServe.SongTypeRepo
 	SongResourceHasmap := map[string]multipart.File{}
 	for _, SongValue := range SongFileAlum {
 		SongResourceHasmap[SongValue.SongName] = SongValue.File
@@ -106,79 +104,74 @@ func (AlbumServe *AlbumSerivce) CreateAlbum(AlbumReq request.AlbumRequest, SongF
 			Status:  "Failed",
 		}, ErrorToCreateAlbum
 	}
-	AlbumEntiy, ErrorToGetAlbum := AlbumRepo.GetAlbumById(AlbumId)
-	if ErrorToGetAlbum != nil {
-		log.Print(ErrorToGetAlbum)
-		return MessageResponse{}, ErrorToGetAlbum
 
-	}
+	go func() {
+		err := AlbumServe.processAlbumBackground(AlbumId, AlbumReq, SongFileAlum)
+		if err != nil {
+			log.Print("loi gui file cho cloudinary")
+		}
+	}()
 
-	SongRequestArray := AlbumReq.Song
-	for _, SongRequestItem := range SongRequestArray {
-		SongTypeId := SongRequestItem.SongType
-		SongTypeArray := []entity.SongType{}
-		ArtistId := SongRequestItem.Artist
-		ArtistArray := []entity.Artist{}
-		for _, SongType := range SongTypeId {
-			SongTypeEntity, ErrorToGetSongType := SongTypeRepo.GetSongTypeById(SongType)
-			if ErrorToGetSongType != nil {
-				log.Print(ErrorToGetSongType)
-				return MessageResponse{
-					Message: "failed to get song type",
-					Status:  "Failed",
-				}, ErrorToGetSongType
-			}
-			SongTypeArray = append(SongTypeArray, SongTypeEntity)
-
-		}
-		for _, Artist := range ArtistId {
-			AritstEntity, ErrorToGetArtist := ArtistRepo.GetArtistById(Artist)
-			if ErrorToGetArtist != nil {
-				log.Print(ErrorToGetArtist)
-				return MessageResponse{
-					Message: "failed to get artist for song",
-					Status:  "Failed",
-				}, ErrorToGetArtist
-			}
-			ArtistArray = append(ArtistArray, AritstEntity)
-		}
-		SongResource, ErrorToUploadFile := Config.HandleUpLoadFile(SongResourceHasmap[SongRequestItem.NameSong], SongRequestItem.NameSong)
-		if ErrorToUploadFile != nil {
-			log.Print(ErrorToUploadFile)
-			return MessageResponse{
-				Message: "failed to create resource",
-				Status:  "Failed",
-			}, ErrorToUploadFile
-		}
-		AlbumEntiy.Song = append(AlbumEntiy.Song, songservice.SongReqMapToSongEntity(SongRequestItem, SongResource, SongTypeArray, ArtistArray))
-	}
-	ArtistIdForAlbum := AlbumReq.Artist
-
-	for _, ArtistItem := range ArtistIdForAlbum {
-		AritstEntity, ErrorToGetArtist := ArtistRepo.GetArtistById(ArtistItem)
-		if ErrorToGetArtist != nil {
-			log.Print(ErrorToGetArtist)
-			return MessageResponse{
-				Message: "failed to get artist",
-				Status:  "Failed",
-			}, ErrorToGetArtist
-		}
-		AlbumEntiy.Artist = append(AlbumEntiy.Artist, AritstEntity)
-	}
-	ErrorToCompleteAlbum := AlbumRepo.UpdateAlbum(AlbumEntiy, AlbumId)
-	if ErrorToCompleteAlbum != nil {
-		log.Print(ErrorToCompleteAlbum)
-		return MessageResponse{
-			Message: "failed to Complete",
-			Status:  "Failed",
-		}, ErrorToCompleteAlbum
-	}
 	return MessageResponse{
 		Message: "success to create album",
 		Status:  "Success",
 	}, nil
 
 }
+func (AlbumServe *AlbumSerivce) processAlbumBackground(AlbumId int, AlbumReq request.AlbumRequest, SongFileAlum []request.SongFileAlbum) error {
+	AlbumRepo := AlbumServe.AlbumRepo
+	ArtistRepo := AlbumServe.ArtistRepo
+	SongTypeRepo := AlbumServe.SongTypeRepo
+
+	SongResourceMap := map[string]multipart.File{}
+	for _, song := range SongFileAlum {
+		SongResourceMap[song.SongName] = song.File
+	}
+
+	AlbumEntiy, err := AlbumRepo.GetAlbumById(AlbumId)
+	if err != nil {
+		return err
+	}
+
+	for _, SongReq := range AlbumReq.Song {
+		var SongTypeArray []entity.SongType
+		for _, id := range SongReq.SongType {
+			entity, err := SongTypeRepo.GetSongTypeById(id)
+			if err != nil {
+				return err
+			}
+			SongTypeArray = append(SongTypeArray, entity)
+		}
+		var ArtistArray []entity.Artist
+		for _, id := range SongReq.Artist {
+			entity, err := ArtistRepo.GetArtistById(id)
+			if err != nil {
+				return err
+			}
+			ArtistArray = append(ArtistArray, entity)
+		}
+		file := SongResourceMap[SongReq.NameSong]
+		songResource, err := Config.HandleUpLoadFile(file, SongReq.NameSong)
+		if err != nil {
+			return err
+		}
+		AlbumEntiy.Song = append(AlbumEntiy.Song,
+			songservice.SongReqMapToSongEntity(SongReq, songResource, SongTypeArray, ArtistArray),
+		)
+	}
+
+	for _, id := range AlbumReq.Artist {
+		entity, err := ArtistRepo.GetArtistById(id)
+		if err != nil {
+			return err
+		}
+		AlbumEntiy.Artist = append(AlbumEntiy.Artist, entity)
+	}
+
+	err = AlbumRepo.UpdateAlbum(AlbumEntiy, AlbumId)
+	return err
+}
+
 func (AlbumServe *AlbumSerivce) GetListAlbum() ([]response.AlbumResponse, error) {
 	AlbumRepo := AlbumServe.AlbumRepo
 	AlbumList, ErrorToGetListAlbum := AlbumRepo.FindAll()

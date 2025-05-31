@@ -10,10 +10,10 @@ type SongRequest struct {
 	Description string    `validate:"max=500"`
 	ReleaseDay  time.Time `validate:"required"`
 	Point       float64   `validate:"gte=0,lte=10"`
-	Status      string    `validate:"required,oneof=public private"`
-	CountryId   int       `validate:"required"`
-	SongType    []int     `validate:"required,min=1,dive,gt=0"`
-	Artist      []int     `validate:"required,min=1,dive,gt=0"`
+	Status      string
+	CountryId   int   `validate:"required"`
+	SongType    []int `validate:"required,min=1,dive,gt=0"`
+	Artist      []int `validate:"required,min=1,dive,gt=0"`
 }
 type SongFile struct {
 	File multipart.File
