@@ -61,3 +61,48 @@ func (*Env) JwtSecretKey() string {
 	}
 	return os.Getenv("JWT_SECRET_KEY")
 }
+
+func (*Env) SmtpHost() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("SMTP_HOST")
+}
+
+func (*Env) SmtpPort() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("SMTP_PORT")
+}
+
+func (*Env) SmtpUser() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("SMTP_USER")
+}
+
+func (*Env) SmtpPassword() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("SMTP_PASSWORD")
+}
+
+func (*Env) FromEmail() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("FROM_EMAIL")
+}

@@ -35,6 +35,7 @@ func MigrateDB(DB *gorm.DB) {
 		&entity.Artist{},
 		&entity.Country{},
 		&entity.ListenHistory{},
+		&entity.Otp{},
 	}
 	for _, table := range tables {
 		DB.AutoMigrate(table)

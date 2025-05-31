@@ -10,6 +10,7 @@ import (
 	collectioncontroller "ten_module/internal/controller/CollectionController"
 	countrycontroller "ten_module/internal/controller/CountryController"
 	historycontroller "ten_module/internal/controller/HistoryController"
+	otpcontroller "ten_module/internal/controller/OtpController"
 	playlistcontroller "ten_module/internal/controller/PlayListController"
 	reviewcontroller "ten_module/internal/controller/ReviewController"
 	songcontroller "ten_module/internal/controller/SongController"
@@ -45,6 +46,8 @@ func InitSingleton() {
 
 	repository.InitCountryRepository()
 
+	repository.InitOtpRepository()
+
 	//Controller init
 	UserController.InitService()
 
@@ -67,4 +70,5 @@ func InitSingleton() {
 	countrycontroller.InitCountryControll()
 
 	songtypecontroller.InitSongTypeControll()
+	otpcontroller.InitOtpControll()
 }
