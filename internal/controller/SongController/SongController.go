@@ -43,10 +43,29 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/search", Controller.SearchSongByKeyWord).Methods("GET")
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
 	r.HandleFunc("/delete/song", Controller.DeleteSongById).Methods("DELETE")
+	r.HandleFunc("/topweek/song", Controller.GetTopSongsThisWeek).Methods("GET")
 }
 
 var validate = validator.New()
 
+func (Controller *SongController) GetTopSongsThisWeek(w http.ResponseWriter, r *http.Request) {
+	topSongs := Controller.songService.GetBookTopWeek()
+
+	w.Header().Set("Content-Type", "application/json")
+	if topSongs == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Không thể lấy danh sách bài hát",
+		})
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    topSongs,
+	})
+}
 func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *http.Request) {
 	var SongRequest request.SongRequest
 	songDataStr := Req.FormValue("songData")

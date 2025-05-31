@@ -1,7 +1,12 @@
 package otpservice
 
 import (
+	"fmt"
+	"math/rand"
+	"ten_module/internal/Config"
+	entity "ten_module/internal/Entity"
 	"ten_module/internal/repository"
+	"time"
 )
 
 type OtpService struct {
@@ -18,6 +23,7 @@ func InitOtpService() {
 
 type OtpServiceInterface interface {
 	CheckOtp(otp string) bool
+	SendOtp() string
 }
 
 func (OtpServe *OtpService) CheckOtp(otp string) bool {
@@ -29,4 +35,20 @@ func (OtpServe *OtpService) CheckOtp(otp string) bool {
 	}
 	return true
 
+}
+func GenerateOTP() string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return fmt.Sprintf("%06d", r.Intn(1000000))
+}
+func (OtpServe *OtpService) SendOtp(Email string) string {
+	go func() {
+		otp := GenerateOTP()
+		newOtp := entity.Otp{
+			Otp:       otp,
+			Create_at: time.Now(),
+		}
+		OtpServe.OtpRepo.CreateOtp(newOtp)
+		Config.SendEmail(Email, "xac thuc otp", otp)
+	}()
+	return "success"
 }

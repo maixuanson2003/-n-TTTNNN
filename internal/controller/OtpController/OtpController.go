@@ -20,7 +20,8 @@ func InitOtpController() {
 	}
 }
 func (OtpControll *OtpController) RegisterRoute(r *mux.Router) {
-	r.HandleFunc("/checkotp", OtpControll.CheckOtp).Methods("post")
+	r.HandleFunc("/checkotp", OtpControll.CheckOtp).Methods("POST")
+	r.HandleFunc("/sendotp", OtpControll.SendOtpHandler).Methods("POST")
 
 }
 func (OtpControll *OtpController) CheckOtp(write http.ResponseWriter, request *http.Request) {
@@ -43,4 +44,16 @@ func (OtpControll *OtpController) CheckOtp(write http.ResponseWriter, request *h
 		}
 		json.NewEncoder(write).Encode(response)
 	}
+}
+func (OtpControll *OtpController) SendOtpHandler(write http.ResponseWriter, request *http.Request) {
+
+	email := request.URL.Query().Get("email")
+
+	result := OtpControll.OtpServe.SendOtp(email)
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(write).Encode(map[string]string{
+		"status":  result,
+		"message": "OTP is being sent to your email",
+	})
 }

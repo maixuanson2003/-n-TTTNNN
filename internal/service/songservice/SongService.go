@@ -97,6 +97,63 @@ func SongEntityMapToSongResponse(Song entity.Song) response.SongResponse {
 	}
 
 }
+func GetWeekRange() (time.Time, time.Time) {
+	now := time.Now()
+	weekday := int(now.Weekday())
+
+	if weekday == 0 {
+		weekday = 7
+	}
+
+	startOfWeek := now.AddDate(0, 0, -weekday+1)
+	startOfWeek = time.Date(startOfWeek.Year(), startOfWeek.Month(), startOfWeek.Day(), 0, 0, 0, 0, startOfWeek.Location())
+
+	endOfWeek := startOfWeek.AddDate(0, 0, 6)
+	endOfWeek = time.Date(endOfWeek.Year(), endOfWeek.Month(), endOfWeek.Day(), 23, 59, 59, 0, endOfWeek.Location())
+
+	return startOfWeek, endOfWeek
+}
+func (songServe *SongService) GetBookTopWeek() []response.SongResponse {
+	SongRepo := songServe.SongRepo
+	ListSong, err := SongRepo.FindAll()
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	startWeek, endWeek := GetWeekRange()
+	pairSong := make(map[*entity.Song]int32)
+	for _, SongItem := range ListSong {
+		count := int32(0)
+		for _, listenItem := range SongItem.ListenHistory {
+			if !listenItem.ListenDay.Before(startWeek) && !listenItem.ListenDay.After(endWeek) {
+				count++
+			}
+		}
+		if count > 0 {
+			pairSong[&SongItem] = count
+		}
+	}
+	type songSlice struct {
+		Song   entity.Song
+		amount int32
+	}
+	arraySong := []songSlice{}
+	for Song, count := range pairSong {
+		arraySong = append(arraySong, songSlice{
+			Song:   *Song,
+			amount: count,
+		})
+	}
+	sort.Slice(arraySong, func(i, j int) bool {
+		return arraySong[i].amount > arraySong[j].amount
+	})
+	SongResponse := []response.SongResponse{}
+	for i := 0; i < 5; i++ {
+		SongResponse = append(SongResponse, SongEntityMapToSongResponse(arraySong[i].Song))
+	}
+	return SongResponse
+
+}
 func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error) {
 	ListSongType := []entity.SongType{}
 	ListArtist := []entity.Artist{}
@@ -491,6 +548,15 @@ func (songServe *SongService) UserLikeSong(SongId int, UserId string) (MessageRe
 		}, ErrorToGetSong
 	}
 	User.Song = append(User.Song, Song)
+	Song.LikeAmount += 1
+	ErrorUpdateSong := SongRepo.UpdateSong(Song, Song.ID)
+	if ErrorUpdateSong != nil {
+		log.Print(ErrorUpdateSong)
+		return MessageResponse{
+			Message: "faile",
+			Status:  "failed",
+		}, ErrorUpdateSong
+	}
 	ErrorToUpdate := UserRepo.Update(User, UserId)
 	if ErrorToUpdate != nil {
 		return MessageResponse{

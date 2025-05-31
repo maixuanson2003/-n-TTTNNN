@@ -2,17 +2,13 @@ package userservice
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"math/rand"
 	"regexp"
-	"ten_module/internal/Config"
 	constants "ten_module/internal/Constant"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
 	"ten_module/internal/repository"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -76,10 +72,7 @@ func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
 		Role:     user.Role,
 	}
 }
-func GenerateOTP() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return fmt.Sprintf("%06d", r.Intn(1000000))
-}
+
 func (service *UserService) UserRegister(UserReq request.UserRequest, types string) (MessageResponse, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(UserReq.Password), 14)
 	if err != nil {
@@ -98,17 +91,7 @@ func (service *UserService) UserRegister(UserReq request.UserRequest, types stri
 	}
 
 	repo := service.UserRepo
-	if types == "user" {
-		go func() {
-			otp := GenerateOTP()
-			newOtp := entity.Otp{
-				Otp:       otp,
-				Create_at: time.Now(),
-			}
-			service.OtpRepo.CreateOtp(newOtp)
-			Config.SendEmail(UserReq.Email, "xac thuc otp", otp)
-		}()
-	}
+
 	errs := repo.Create(User)
 	if errs != nil {
 		return MessageResponse{}, err
