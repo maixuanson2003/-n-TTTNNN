@@ -94,12 +94,15 @@ func (ReviewServe *ReviewService) GetListReviewBySong(SongId int) ([]response.Re
 	ReviewArray := Song.Review
 	ReviewResponse := []response.ReviewResponse{}
 	for _, ReviewItem := range ReviewArray {
-		User, ErrorToGetUser := UserRepo.FindById(ReviewItem.UserId)
-		if ErrorToGetUser != nil {
-			log.Print(ErrorToGetUser)
-			return nil, ErrorToGetUser
+		if ReviewItem.Status == Status_Up {
+			User, ErrorToGetUser := UserRepo.FindById(ReviewItem.UserId)
+			if ErrorToGetUser != nil {
+				log.Print(ErrorToGetUser)
+				return nil, ErrorToGetUser
+			}
+			ReviewResponse = append(ReviewResponse, MapReviewEntityToReviewResponse(ReviewItem, User.Username))
 		}
-		ReviewResponse = append(ReviewResponse, MapReviewEntityToReviewResponse(ReviewItem, User.Username))
+
 	}
 	return ReviewResponse, nil
 }
@@ -120,10 +123,27 @@ func (ReviewServe *ReviewService) CreateReview(Review request.ReviewRequest) (Me
 	}, nil
 
 }
-func (ReviewServe *ReviewService) UpdateReview(Review request.ReviewRequest, ReviewId int) (MessageResponse, error) {
+func mapStatus(input string) string {
+	switch input {
+	case "publish":
+		return Status_Up
+	case "notpublish":
+		return Status_Down
+	default:
+		return Status_Down
+	}
+}
+func (ReviewServe *ReviewService) UpdateReview(Status string, ReviewId int) (MessageResponse, error) {
 	ReviewRepo := ReviewServe.ReviewRepo
-	ReviewEntity := MapReviewRequestToReviewEntity(Review)
-	ErrorToUpdateReview := ReviewRepo.UpdateReview(ReviewEntity, ReviewId)
+	Review, errors := ReviewRepo.FindById(ReviewId)
+	if errors != nil {
+		return MessageResponse{
+			Message: "failed",
+			Status:  "Failed",
+		}, errors
+	}
+	Review.Status = mapStatus(Status)
+	ErrorToUpdateReview := ReviewRepo.UpdateReview(Review, ReviewId)
 	if ErrorToUpdateReview != nil {
 		log.Print(ErrorToUpdateReview)
 		return MessageResponse{
@@ -134,6 +154,19 @@ func (ReviewServe *ReviewService) UpdateReview(Review request.ReviewRequest, Rev
 	return MessageResponse{
 		Message: "success to update review",
 		Status:  "Success",
+	}, nil
+
+}
+func (ReviewServe *ReviewService) DeleteReviewById(ReviewId int) (MessageResponse, error) {
+	ReviewRepo := ReviewServe.ReviewRepo
+	errors := ReviewRepo.DeleteReview(ReviewId)
+	if errors != nil {
+		log.Print(errors)
+		return MessageResponse{}, errors
+	}
+	return MessageResponse{
+		Message: "failed",
+		Status:  "Failed",
 	}, nil
 
 }

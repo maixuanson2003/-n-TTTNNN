@@ -37,6 +37,15 @@ func (ReviewRepo *ReviewRepository) FindAll() ([]entity.Review, error) {
 	}
 	return Review, nil
 }
+func (ReviewRepo *ReviewRepository) FindById(id int) (entity.Review, error) {
+	Database := ReviewRepo.DB
+	var Review entity.Review
+	err := Database.Model(&entity.Review{}).First(&Review, id).Error
+	if err != nil {
+		return entity.Review{}, err
+	}
+	return Review, nil
+}
 func (ReviewRepo *ReviewRepository) CreateReview(Review entity.Review) error {
 	Database := ReviewRepo.DB
 	errs := Database.Transaction(func(tx *gorm.DB) error {
@@ -66,6 +75,19 @@ func (ReviewRepo *ReviewRepository) UpdateReview(Review entity.Review, id int) e
 	if errs != nil {
 		log.Print(errs)
 		return errs
+	}
+	return nil
+}
+func (ReviewRepo *ReviewRepository) DeleteReview(id int) error {
+	Database := ReviewRepo.DB
+	var review entity.Review
+	errs := Database.Model(&entity.Review{}).First(&review, id).Error
+	if errs != nil {
+		return errs
+	}
+	errorsToDelete := Database.Delete(&review).Error
+	if errorsToDelete != nil {
+		return errorsToDelete
 	}
 	return nil
 }

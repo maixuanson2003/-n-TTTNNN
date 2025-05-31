@@ -32,9 +32,13 @@ type ListenHistoryServiceInterface interface {
 func (HistoryServ *ListenHistoryService) SaveHistoryListen(UserId string, SongId int) (MessageResponse, error) {
 	HistoryRepo := HistoryServ.HistoryRepo
 	SongRepo := HistoryServ.SongRepo
+	var userIdPtr *string
+	if UserId != "" {
+		userIdPtr = &UserId
+	}
 	History := entity.ListenHistory{
 		SongId:    SongId,
-		UserId:    UserId,
+		UserId:    userIdPtr,
 		ListenDay: time.Now(),
 	}
 	SongItem, ErrorToGetSong := SongRepo.GetSongById(SongId)

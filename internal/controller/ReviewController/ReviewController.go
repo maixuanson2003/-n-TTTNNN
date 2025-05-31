@@ -26,7 +26,8 @@ func (ReviewControll *ReviewController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/reviewlist", ReviewControll.GetListReview).Methods("GET")
 	r.HandleFunc("/reviewlistinsong/{id}", ReviewControll.GetListReviewBySong).Methods("GET")
 	r.HandleFunc("/createreview", ReviewControll.CreateReview).Methods("POST")
-
+	r.HandleFunc("/updatereview", ReviewControll.UpdateReview).Methods("PUT")
+	r.HandleFunc("/deletereview/{id}", ReviewControll.DeleteReview).Methods("DELETE")
 }
 func (ReviewControll *ReviewController) CreateReview(Write http.ResponseWriter, Request *http.Request) {
 	var ReviewRequest *request.ReviewRequest
@@ -68,4 +69,43 @@ func (ReviewControll *ReviewController) GetListReviewBySong(Write http.ResponseW
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(Resp)
+}
+func (reviewController *ReviewController) UpdateReview(w http.ResponseWriter, r *http.Request) {
+
+	reviewIdStr := r.URL.Query().Get("reviewid")
+	reviewId, err := strconv.Atoi(reviewIdStr)
+	status := r.URL.Query().Get("status")
+	if err != nil {
+		http.Error(w, "Invalid review ID", http.StatusBadRequest)
+		return
+	}
+
+	response, err := reviewController.ReviewServe.UpdateReview(status, reviewId)
+	if err != nil {
+		http.Error(w, response.Message, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+func (reviewController *ReviewController) DeleteReview(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	reviewIdStr := vars["id"]
+	reviewId, err := strconv.Atoi(reviewIdStr)
+	if err != nil {
+		http.Error(w, "Invalid review ID", http.StatusBadRequest)
+		return
+	}
+
+	response, err := reviewController.ReviewServe.DeleteReviewById(reviewId)
+	if err != nil {
+		http.Error(w, response.Message, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }

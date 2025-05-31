@@ -148,9 +148,14 @@ func (songServe *SongService) GetBookTopWeek() []response.SongResponse {
 		return arraySong[i].amount > arraySong[j].amount
 	})
 	SongResponse := []response.SongResponse{}
-	for i := 0; i < 5; i++ {
+	limit := 5
+	if len(arraySong) < 5 {
+		limit = len(arraySong)
+	}
+	for i := 0; i < limit; i++ {
 		SongResponse = append(SongResponse, SongEntityMapToSongResponse(arraySong[i].Song))
 	}
+
 	return SongResponse
 
 }
