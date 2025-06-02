@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	middleware "ten_module/Middleware"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/reviewservice"
 
@@ -13,6 +14,7 @@ import (
 
 type ReviewController struct {
 	ReviewServe *reviewservice.ReviewService
+	MiddleWare  *middleware.UseMiddleware
 }
 
 var ReviewControll *ReviewController
@@ -20,14 +22,16 @@ var ReviewControll *ReviewController
 func InitReviewController() {
 	ReviewControll = &ReviewController{
 		ReviewServe: reviewservice.ReviewServe,
+		MiddleWare:  middleware.Middlewares,
 	}
 }
 func (ReviewControll *ReviewController) RegisterRoute(r *mux.Router) {
+	middleware := ReviewControll.MiddleWare
 	r.HandleFunc("/reviewlist", ReviewControll.GetListReview).Methods("GET")
 	r.HandleFunc("/reviewlistinsong/{id}", ReviewControll.GetListReviewBySong).Methods("GET")
-	r.HandleFunc("/createreview", ReviewControll.CreateReview).Methods("POST")
-	r.HandleFunc("/updatereview", ReviewControll.UpdateReview).Methods("PUT")
-	r.HandleFunc("/deletereview/{id}", ReviewControll.DeleteReview).Methods("DELETE")
+	r.HandleFunc("/createreview", middleware.Chain(ReviewControll.CreateReview, middleware.CheckToken(), middleware.VerifyRole([]string{"USER"}))).Methods("POST")
+	r.HandleFunc("/updatereview", middleware.Chain(ReviewControll.UpdateReview, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
+	r.HandleFunc("/deletereview/{id}", middleware.Chain(ReviewControll.DeleteReview, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("DELETE")
 }
 func (ReviewControll *ReviewController) CreateReview(Write http.ResponseWriter, Request *http.Request) {
 	var ReviewRequest *request.ReviewRequest

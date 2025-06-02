@@ -125,9 +125,9 @@ func (ReviewServe *ReviewService) CreateReview(Review request.ReviewRequest) (Me
 }
 func mapStatus(input string) string {
 	switch input {
-	case "publish":
+	case "PUBLISH":
 		return Status_Up
-	case "notpublish":
+	case "NOT_PUBLISH":
 		return Status_Down
 	default:
 		return Status_Down
@@ -135,6 +135,7 @@ func mapStatus(input string) string {
 }
 func (ReviewServe *ReviewService) UpdateReview(Status string, ReviewId int) (MessageResponse, error) {
 	ReviewRepo := ReviewServe.ReviewRepo
+	log.Print(Status)
 	Review, errors := ReviewRepo.FindById(ReviewId)
 	if errors != nil {
 		return MessageResponse{
@@ -142,6 +143,7 @@ func (ReviewServe *ReviewService) UpdateReview(Status string, ReviewId int) (Mes
 			Status:  "Failed",
 		}, errors
 	}
+	log.Print(mapStatus(Status))
 	Review.Status = mapStatus(Status)
 	ErrorToUpdateReview := ReviewRepo.UpdateReview(Review, ReviewId)
 	if ErrorToUpdateReview != nil {

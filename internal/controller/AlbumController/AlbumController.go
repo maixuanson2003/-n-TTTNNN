@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	middleware "ten_module/Middleware"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/albumservice"
 
@@ -16,6 +17,7 @@ import (
 
 type AlbumController struct {
 	AlbumServe *albumservice.AlbumSerivce
+	MiddleWare *middleware.UseMiddleware
 }
 
 var AlbumControll *AlbumController
@@ -23,18 +25,20 @@ var AlbumControll *AlbumController
 func InitAlbumController() {
 	AlbumControll = &AlbumController{
 		AlbumServe: albumservice.AlbumServe,
+		MiddleWare: middleware.Middlewares,
 	}
 }
 
 var validate = validator.New()
 
 func (AlbumControll *AlbumController) RegisterRoute(r *mux.Router) {
-	r.HandleFunc("/createalbum", AlbumControll.CreateAlbum).Methods("POST")
+	middleware := AlbumControll.MiddleWare
+	r.HandleFunc("/createalbum", AlbumControll.MiddleWare.Chain(AlbumControll.CreateAlbum, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
 	r.HandleFunc("/album/getlist", AlbumControll.GetListAlbums).Methods("GET")
 	r.HandleFunc("/album/{id}", AlbumControll.GetAlbumById).Methods("GET")
 	r.HandleFunc("/getalbum/artist", AlbumControll.GetAlbumByArtist).Methods("GET")
-	r.HandleFunc("/deletealbum/{id}", AlbumControll.DeleteAlbumById).Methods("DELETE")
-	r.HandleFunc("/updatealbum/{id}", AlbumControll.UpdateAlbum).Methods("PUT")
+	r.HandleFunc("/deletealbum/{id}", AlbumControll.MiddleWare.Chain(AlbumControll.DeleteAlbumById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
+	r.HandleFunc("/updatealbum/{id}", AlbumControll.MiddleWare.Chain(AlbumControll.UpdateAlbum, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 
 }
 func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Request *http.Request) {

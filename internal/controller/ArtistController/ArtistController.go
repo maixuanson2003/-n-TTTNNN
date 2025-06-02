@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	middleware "ten_module/Middleware"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/service/artistservice"
 
@@ -14,6 +15,7 @@ import (
 
 type ArtistController struct {
 	ArtistService *artistservice.ArtistService
+	MiddleWare    *middleware.UseMiddleware
 }
 
 var ArtistControll *ArtistController
@@ -21,18 +23,20 @@ var ArtistControll *ArtistController
 func InitArtistController() {
 	ArtistControll = &ArtistController{
 		ArtistService: artistservice.ArtistServe,
+		MiddleWare:    middleware.Middlewares,
 	}
 }
 func (ArtController *ArtistController) RegisterRoute(r *mux.Router) {
+	middleware := ArtController.MiddleWare
 	r.HandleFunc("/listart", ArtController.GetListArtist).Methods("GET")
-	r.HandleFunc("/createart", ArtController.CreateArtist).Methods("POST")
+	r.HandleFunc("/createart", middleware.Chain(ArtController.CreateArtist, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
 	r.HandleFunc("/searchart", ArtController.SearchArtist).Methods("GET")
 	r.HandleFunc("/filterart", ArtController.FilterArtist).Methods("GET")
 	r.HandleFunc("/createindex", ArtController.CreateAritstIndexToElastic).Methods("POST")
 	r.HandleFunc("/addart", ArtController.AddAritstToElastic).Methods("POST")
 	r.HandleFunc("/artist/{id}", ArtController.GetArtistById).Methods("GET")
-	r.HandleFunc("/deleteartist/{id}", ArtController.DeletAritst).Methods("DELETE")
-	r.HandleFunc("/updateartist/{id}", ArtController.UpdateArtist).Methods("PUT")
+	r.HandleFunc("/deleteartist/{id}", middleware.Chain(ArtController.DeletAritst, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
+	r.HandleFunc("/updateartist/{id}", middleware.Chain(ArtController.UpdateArtist, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 }
 func (ArtController *ArtistController) GetListArtist(write http.ResponseWriter, Request *http.Request) {
 	Artist, ErrorToGetList := ArtController.ArtistService.GetListArtist()

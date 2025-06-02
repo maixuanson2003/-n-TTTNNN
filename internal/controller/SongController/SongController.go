@@ -31,10 +31,11 @@ func InitSongController() {
 	}
 }
 func (Controller *SongController) RegisterRoute(r *mux.Router) {
-	r.HandleFunc("/song/create", Controller.CreateNewSong).Methods("POST")
+	middleware := Controller.middlware
+	r.HandleFunc("/song/create", middleware.Chain(Controller.CreateNewSong, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
 	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
 	r.HandleFunc("/getsong/{id}", Controller.GetSongById).Methods("GET")
-	r.HandleFunc("/updatesong/{id}", Controller.UpdateSong).Methods("PUT")
+	r.HandleFunc("/updatesong/{id}", middleware.Chain(Controller.UpdateSong, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
 	r.HandleFunc("/foruser/{id}", Controller.GetSongForUser).Methods("GET")
 	r.HandleFunc("/geturl", Controller.GetAllUrlSong).Methods("GET")
@@ -42,7 +43,7 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
 	r.HandleFunc("/search", Controller.SearchSongByKeyWord).Methods("GET")
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
-	r.HandleFunc("/delete/song", Controller.DeleteSongById).Methods("DELETE")
+	r.HandleFunc("/delete/song", middleware.Chain(Controller.DeleteSongById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/topweek/song", Controller.GetTopSongsThisWeek).Methods("GET")
 }
 
@@ -123,13 +124,14 @@ func (Controller *SongController) UpdateSong(Write http.ResponseWriter, Req *htt
 	}
 	errorToConvert := json.Unmarshal([]byte(Req.FormValue("songData")), &SongRequest)
 	if errorToConvert != nil {
-		fmt.Print(errorToConvert)
+		log.Print(errorToConvert)
 		http.Error(Write, "failed to Json", http.StatusBadRequest)
 		return
 	}
 	resp, errToUpdate := Controller.songService.UpdateSong(SongRequest, SongId)
 	if errToUpdate != nil {
-		fmt.Print(errToUpdate)
+		log.Print(errToUpdate)
+
 		http.Error(Write, "failed to update", http.StatusBadRequest)
 		return
 	}

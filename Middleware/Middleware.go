@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"ten_module/internal/service/authservice"
@@ -19,7 +20,17 @@ func (middle *UseMiddleware) CheckToken() Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			TokenCheck := authservice.TokenHelper{}
-			Token := strings.Split(r.Header.Get("Authorization"), " ")[2]
+
+			authHeader := r.Header.Get("Authorization")
+			log.Print(authHeader)
+
+			parts := strings.Split(authHeader, " ")
+			if len(parts) < 2 {
+				http.Error(w, "Invalid Authorization header", http.StatusUnauthorized)
+				return
+			}
+
+			Token := parts[1]
 			if Token == "" {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
@@ -38,7 +49,17 @@ func (middle *UseMiddleware) VerifyRole(RoleRequire []string) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			TokenCheck := authservice.TokenHelper{}
-			Token := strings.Split(r.Header.Get("Authorization"), " ")[2]
+
+			authHeader := r.Header.Get("Authorization")
+			log.Print(authHeader)
+
+			parts := strings.Split(authHeader, " ")
+			if len(parts) < 2 {
+				http.Error(w, "Invalid Authorization header", http.StatusUnauthorized)
+				return
+			}
+
+			Token := parts[1]
 			Role, err := TokenCheck.GetRoleToken(Token)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

@@ -40,12 +40,12 @@ func GetUserController(Database *gorm.DB) UserController {
 func (userController *UserController) RegisterRoute(r *mux.Router) {
 	middleware := userController.MiddleWare
 	r.HandleFunc("/register", userController.UserRegister).Methods("POST")
-	r.HandleFunc("/createuser", userController.UserCreate).Methods("POST")
+	r.HandleFunc("/createuser", middleware.Chain(userController.UserCreate, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
 	r.HandleFunc("/all", userController.GetListUser).Methods("GET")
 	r.HandleFunc("/user/{id}", middleware.Chain(userController.DeleteUserById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/search", middleware.Chain(userController.SearchUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("POST")
 	// r.HandleFunc("/update/{id}", middleware.Chain(userController.UpdateUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
-	r.HandleFunc("/update/{id}", userController.UpdateUser).Methods("PUT")
+	r.HandleFunc("/update/{id}", middleware.Chain(userController.UpdateUser, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 	r.HandleFunc("/getuser/{id}", userController.GetUserById).Methods("GET")
 	r.HandleFunc("/deleteuser/{id}", userController.DeleteUserById).Methods("DELETE")
 }

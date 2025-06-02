@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	middleware "ten_module/Middleware"
 	collectionservice "ten_module/internal/service/CollectionService"
 
 	"github.com/gorilla/mux"
@@ -12,6 +13,7 @@ import (
 
 type CollectionController struct {
 	CollectionService *collectionservice.CollectionService
+	MiddleWare        *middleware.UseMiddleware
 }
 
 var CollectionControll *CollectionController
@@ -19,15 +21,17 @@ var CollectionControll *CollectionController
 func InitCollectionController() {
 	CollectionControll = &CollectionController{
 		CollectionService: collectionservice.CollectionServe,
+		MiddleWare:        middleware.Middlewares,
 	}
 }
 func (CollectionControll *CollectionController) RegisterRoute(r *mux.Router) {
+	middleware := CollectionControll.MiddleWare
 	r.HandleFunc("/listcollect", CollectionControll.GetListCollection).Methods("GET")
 	r.HandleFunc("/collect/{id}", CollectionControll.GetCollectionById).Methods("GET")
-	r.HandleFunc("/createcollect", CollectionControll.CreateCollection).Methods("POST")
-	r.HandleFunc("/addtocollect", CollectionControll.AddSongToCollection).Methods("PUT")
-	r.HandleFunc("/deletesongcollect", CollectionControll.DeleteSongFromCollect).Methods("DELETE")
-	r.HandleFunc("/deletecollect/{id}", CollectionControll.DeleteCollection).Methods("DELETE")
+	r.HandleFunc("/createcollect", middleware.Chain(CollectionControll.CreateCollection, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
+	r.HandleFunc("/addtocollect", middleware.Chain(CollectionControll.AddSongToCollection, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
+	r.HandleFunc("/deletesongcollect", middleware.Chain(CollectionControll.DeleteSongFromCollect, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
+	r.HandleFunc("/deletecollect/{id}", middleware.Chain(CollectionControll.DeleteCollection, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 }
 
 func (CollectionControll *CollectionController) GetListCollection(Write http.ResponseWriter, Request *http.Request) {
