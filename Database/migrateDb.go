@@ -1,12 +1,14 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	entity "ten_module/internal/Entity"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -63,6 +65,34 @@ func RunSQLFile(db *gorm.DB) error {
 		}
 
 	}
+
 	fmt.Println("✅ Seed dữ liệu thành công từ file:", "ok")
 	return nil
+}
+func Seed(db *gorm.DB) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte("admin"), 14)
+	if err != nil {
+		return err
+	}
+
+	var user entity.User
+	err = db.Where("role = ?", "ADMIN").First(&user).Error
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return db.Create(&entity.User{
+		Username: "admin",
+		FullName: "admin",
+		Password: string(bytes),
+		Phone:    "00000000",
+		Email:    "admin@gmail.com",
+		Address:  "hear",
+		Gender:   "male",
+		Age:      "20",
+		Role:     "ADMIN",
+	}).Error
+
 }

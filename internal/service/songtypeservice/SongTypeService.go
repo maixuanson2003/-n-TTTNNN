@@ -16,6 +16,7 @@ type MessageResponse struct {
 }
 type SongTypeServiceInterface interface {
 	GetListSongType() ([]map[string]interface{}, error)
+
 	CreateSongType(Type string) (MessageResponse, error)
 	UpdateSongType(Type string, Id int) (MessageResponse, error)
 	DeleteSongTypeById(Id int) (MessageResponse, error)
@@ -48,6 +49,20 @@ func (SongTypeServe *SongTypeService) GetListSongType() ([]map[string]interface{
 	}
 	return SongTypeResponse, nil
 
+}
+func (SongTypeServe *SongTypeService) GetTypeById(Id int) (map[string]interface{}, error) {
+	SongTypeRepo := SongTypeServe.SongTypeRepo
+	SongTypeItem, errorToGetList := SongTypeRepo.GetSongTypeById(Id)
+	if errorToGetList != nil {
+		log.Print(errorToGetList)
+		return nil, errorToGetList
+	}
+	ResponseItem := map[string]interface{}{
+		"id":     SongTypeItem.ID,
+		"type":   SongTypeItem.Type,
+		"create": SongTypeItem.CreatAt,
+	}
+	return ResponseItem, nil
 }
 func (SongTypeServe *SongTypeService) CreateSongType(Type string) (MessageResponse, error) {
 	SongTypeRepo := SongTypeServe.SongTypeRepo

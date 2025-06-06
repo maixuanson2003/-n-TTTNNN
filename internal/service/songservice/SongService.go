@@ -591,6 +591,7 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 		Similarity float64
 	}
 	vectorFeatureSong, FeatureTag, Error := helper.GetVectorFeatureForSong()
+	log.Print(vectorFeatureSong)
 	if Error != nil {
 		log.Print(Error)
 		return nil, Error
@@ -643,8 +644,8 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	topN := 7
 	SongRecommendId := []response.SongResponse{}
 	for i := 0; i < topN && i < len(similarities); i++ {
-		fmt.Print(similarities[i].Similarity, " ", similarities[i].ID)
-		fmt.Print(" ")
+		// fmt.Print(similarities[i].Similarity, " ", similarities[i].ID)
+		// fmt.Print(" ")
 		SongEntity, errorToGetSong := SongServe.SongRepo.GetSongById(similarities[i].ID)
 		if errorToGetSong != nil {
 			log.Print(errorToGetSong)

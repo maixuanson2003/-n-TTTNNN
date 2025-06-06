@@ -76,7 +76,7 @@ func GetVectorFeatureForUser(SongId int, Feature []string) ([]int16, error) {
 	for _, Feat := range Feature {
 		BinaryCheck = append(BinaryCheck, int16(check[Feat]))
 	}
-	fmt.Print(BinaryCheck)
+
 	return BinaryCheck, nil
 
 }
@@ -98,8 +98,7 @@ func GetCosineSimilar(featureSong1 []int16, featureSong2 []int16) float64 {
 
 	normUser = math.Sqrt(normUser)
 	normSong = math.Sqrt(normSong)
-	s := float64(dotProduct) / (normUser * normSong)
-	fmt.Println(s)
+	// s := float64(dotProduct) / (normUser * normSong)
 
 	if normUser == 0 || normSong == 0 {
 		return 0

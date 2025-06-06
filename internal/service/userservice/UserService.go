@@ -75,6 +75,7 @@ func UserEntityMapToUserResponse(user entity.User) response.UserResponse {
 
 func (service *UserService) UserRegister(UserReq request.UserRequest, types string) (MessageResponse, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(UserReq.Password), 14)
+	repo := service.UserRepo
 	if err != nil {
 		log.Print(" khong hash duoc mat khau")
 		return MessageResponse{}, err
@@ -85,12 +86,16 @@ func (service *UserService) UserRegister(UserReq request.UserRequest, types stri
 		log.Print(errors.New("not enough data"))
 		return MessageResponse{}, errors.New("not enough data")
 	}
+
+	_, errToFind := repo.FindByEmail(UserReq.Email)
+	if errToFind == nil {
+		return MessageResponse{}, errors.New("email already exists")
+	}
+
 	User := UserReqMapToUserEntity(UserReq, bytes)
 	if types == "user" {
 		User.Role = string(constants.USER)
 	}
-
-	repo := service.UserRepo
 
 	errs := repo.Create(User)
 	if errs != nil {

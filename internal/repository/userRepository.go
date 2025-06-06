@@ -55,6 +55,21 @@ func (instance *UserRepository) FindById(Id string) (entity.User, error) {
 	}
 	return User, nil
 }
+func (instance *UserRepository) FindByEmail(email string) (entity.User, error) {
+	Database := instance.DB
+	var user entity.User
+	err := Database.
+		Preload("ListenHistory").
+		Preload("Song").
+		Preload("PlayList").
+		Preload("Review").
+		Where("email = ?", email).
+		First(&user).Error
+	if err != nil {
+		return entity.User{}, err
+	}
+	return user, nil
+}
 func (instance *UserRepository) Create(User entity.User) error {
 	Database := instance.DB
 	errs := Database.Transaction(func(tx *gorm.DB) error {

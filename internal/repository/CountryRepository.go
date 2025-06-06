@@ -64,7 +64,7 @@ func (CountryRepo *CountryRepository) CreateCountry(Country entity.Country) erro
 	return nil
 }
 func (CountryRepo *CountryRepository) UpdateCountry(Country entity.Country, id int) error {
-	Database := CollectionRepo.DB
+	Database := CountryRepo.DB
 	errs := Database.Transaction(func(tx *gorm.DB) error {
 		err := Database.Where("id=?", id).Save(&Country).Error
 		if err != nil {
@@ -77,4 +77,47 @@ func (CountryRepo *CountryRepository) UpdateCountry(Country entity.Country, id i
 		return errs
 	}
 	return nil
+}
+func (CountryRepo *CountryRepository) DeleteCountryByID(id int) error {
+	Database := CountryRepo.DB
+	var country entity.Country
+	if err := Database.Preload("Song").Preload("Artist").Where("id =?", id).First(&country, id).Error; err != nil {
+		return err
+	}
+	song := country.Song
+	artist := country.Artist
+	for _, songItem := range song {
+		var SongHandle entity.Song
+		errs := Database.
+			Preload("SongType").
+			Preload("ListenHistory").
+			Preload("Review").
+			Preload("Artist").
+			Preload("User").
+			Preload("PlayList").
+			Preload("Collection").
+			First(&SongHandle, songItem.ID).Error
+		if errs != nil {
+			return errs
+		}
+		errsDelete := Database.
+			Select("SongType", "ListenHistory", "Review", "Artist", "User", "PlayList", "Collection").
+			Delete(&SongHandle).Error
+		if errsDelete != nil {
+			return errsDelete
+		}
+	}
+	for _, artistItem := range artist {
+		var artist entity.Artist
+		err := Database.Preload("Song").Preload("Album").First(&artist, artistItem.ID).Error
+		if err != nil {
+			return err
+		}
+		errors := Database.Select("Song", "Album").Delete(&artist).Error
+		if errors != nil {
+			return errors
+		}
+	}
+
+	return Database.Select("Song", "Artist").Delete(&country).Error
 }

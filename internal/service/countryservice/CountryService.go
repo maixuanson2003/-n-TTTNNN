@@ -93,3 +93,46 @@ func (CountryServe *CountryService) UpdateCountry(CountryName string, Id int) (M
 	}, nil
 
 }
+func (CountryServe *CountryService) DeleteCountryById(Id int) (MessageResponse, error) {
+	CountryRepo := CountryServe.CountryRepo
+	_, err := CountryRepo.GetCountryById(Id)
+	if err != nil {
+		log.Print(err)
+		return MessageResponse{
+			Message: "failed to delete country, not found",
+			Status:  "Failed",
+		}, err
+	}
+
+	// Thực hiện xoá
+	err = CountryRepo.DeleteCountryByID(Id)
+	if err != nil {
+		log.Print(err)
+		return MessageResponse{
+			Message: "failed to delete country",
+			Status:  "Failed",
+		}, err
+	}
+
+	return MessageResponse{
+		Message: "success to delete country",
+		Status:  "Success",
+	}, nil
+}
+func (CountryServe *CountryService) GetCountryById(Id int) (response.CountryResponse, error) {
+	CountryRepo := CountryServe.CountryRepo
+
+	CountryEntity, err := CountryRepo.GetCountryById(Id)
+	if err != nil {
+		log.Print(err)
+		return response.CountryResponse{}, err
+	}
+
+	CountryResp := response.CountryResponse{
+		Id:          CountryEntity.ID,
+		CountryName: CountryEntity.CountryName,
+		CreateAt:    CountryEntity.CreateAt,
+	}
+
+	return CountryResp, nil
+}

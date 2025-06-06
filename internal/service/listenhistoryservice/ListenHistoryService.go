@@ -32,6 +32,7 @@ type ListenHistoryServiceInterface interface {
 func (HistoryServ *ListenHistoryService) SaveHistoryListen(UserId string, SongId int) (MessageResponse, error) {
 	HistoryRepo := HistoryServ.HistoryRepo
 	SongRepo := HistoryServ.SongRepo
+	log.Print(UserId)
 	var userIdPtr *string
 	if UserId != "" {
 		userIdPtr = &UserId
