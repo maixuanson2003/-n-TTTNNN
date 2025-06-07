@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	entity "ten_module/internal/Entity"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -84,6 +85,7 @@ func Seed(db *gorm.DB) error {
 		return err
 	}
 	return db.Create(&entity.User{
+		ID:       uuid.NewString(),
 		Username: "admin",
 		FullName: "admin",
 		Password: string(bytes),

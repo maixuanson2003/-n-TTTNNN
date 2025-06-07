@@ -52,7 +52,8 @@ func (userController *UserController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/getuser/{id}", userController.GetUserById).Methods("GET")
 	r.HandleFunc("/deleteuser/{id}", userController.DeleteUserById).Methods("DELETE")
 	r.HandleFunc("/admin/users/export", middleware.Chain(userController.ExportUsersExcel, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("GET")
-	r.HandleFunc("/change/password", middleware.Chain(userController.ChangePassword, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"})))
+	r.HandleFunc("/change/password", middleware.Chain(userController.ChangePassword, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("POST")
+	r.HandleFunc("/reset/password", userController.ResetPassword).Methods("POST")
 }
 func (userController *UserController) UserRegister(write http.ResponseWriter, Request *http.Request) {
 	var Body request.UserRequest
@@ -231,6 +232,30 @@ func (userController *UserController) ChangePassword(write http.ResponseWriter, 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
 	user.Password = string(hashedPassword)
 	errs := repo.Update(user, userid)
+	if errs != nil {
+		http.Error(write, "update failed", http.StatusBadRequest)
+		return
+	}
+
+	write.Header().Set("Content-Type", "application/json")
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(map[string]interface{}{
+		"status":  "success",
+		"message": "Đổi mật khẩu thành công",
+	})
+}
+func (userController *UserController) ResetPassword(write http.ResponseWriter, Request *http.Request) {
+	email := Request.URL.Query().Get("email")
+	newPassword := Request.URL.Query().Get("newpassword")
+	repo := userController.UserService.UserRepo
+	user, err := repo.FindByEmail(email)
+	if err != nil {
+		http.Error(write, "not found", http.StatusBadRequest)
+		return
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
+	user.Password = string(hashedPassword)
+	errs := repo.Update(user, user.ID)
 	if errs != nil {
 		http.Error(write, "update failed", http.StatusBadRequest)
 		return
