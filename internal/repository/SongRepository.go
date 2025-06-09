@@ -168,3 +168,44 @@ func (songRepository *SongRepository) DeleteSongById(id int) error {
 		return nil
 	})
 }
+func (songRepository *SongRepository) DeleteSongsByAlbumId(albumId int) error {
+	db := songRepository.DB
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		var songs []entity.Song
+		if err := tx.Where("album_id = ?", albumId).Find(&songs).Error; err != nil {
+			return err
+		}
+
+		for _, song := range songs {
+			songID := song.ID
+
+			if err := tx.Where("song_id = ?", songID).Delete(&entity.ListenHistory{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("song_id = ?", songID).Delete(&entity.Review{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM song_song_types WHERE song_id = ?", songID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM song_artists WHERE song_id = ?", songID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM user_likes WHERE song_id = ?", songID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM play_list_songs WHERE song_id = ?", songID).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM collection_songs WHERE song_id = ?", songID).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Where("album_id = ?", albumId).Delete(&entity.Song{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

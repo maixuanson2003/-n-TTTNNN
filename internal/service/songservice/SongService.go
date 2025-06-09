@@ -24,6 +24,7 @@ type SongService struct {
 	SongTypeRepo *repository.SongTypeRepository
 	ArtistRepo   *repository.ArtistRepository
 	HisRepo      *repository.ListenHistoryRepo
+	AlbumRepo    *repository.AlbumRepository
 }
 type SongServiceInterface interface {
 	GetSongById(Id int) (response.SongResponse, error)
@@ -60,6 +61,7 @@ func InitSongService() {
 		SongTypeRepo: repository.SongTypeRepo,
 		ArtistRepo:   repository.ArtistRepo,
 		HisRepo:      repository.ListenRepo,
+		AlbumRepo:    repository.AlbumRepo,
 	}
 }
 func SongReqMapToSongEntity(SongReq request.SongRequest, resource string, ListSongType []entity.SongType, ListArtist []entity.Artist) entity.Song {
@@ -192,6 +194,80 @@ func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFil
 	}, nil
 
 }
+func (songServe *SongService) UpdateSongAlbum(AlbumId *int, songReqs []request.SongRequest, songFiles []request.SongFile) {
+	album, err := songServe.AlbumRepo.GetAlbumById(*AlbumId)
+	if err != nil {
+		log.Print(album)
+		return
+	}
+
+	err = songServe.SongRepo.DeleteSongsByAlbumId(*AlbumId)
+	if err != nil {
+		log.Printf("Lỗi khi xóa bài hát cũ: %v", err)
+		return
+	}
+
+	album.Song = []entity.Song{}
+
+	errs := songServe.AlbumRepo.UpdateAlbum(album, *AlbumId)
+	if errs != nil {
+		log.Print(errs)
+		return
+	}
+	for index, songReq := range songReqs {
+		go func() {
+			songEntity := entity.Song{}
+
+			songEntity.NameSong = songReq.NameSong
+			songEntity.Description = songReq.Description
+			songEntity.Point = songReq.Point
+			songEntity.CountryId = songReq.CountryId
+			songEntity.ReleaseDay = songReq.ReleaseDay
+			songEntity.CreateDay = time.Now()
+			songEntity.UpdateDay = time.Now()
+			songEntity.AlbumId = AlbumId
+			newSongTypes := []entity.SongType{}
+			for _, typeId := range songReq.SongType {
+				songType, err := songServe.SongTypeRepo.GetSongTypeById(typeId)
+				if err != nil {
+					log.Printf("Không tìm thấy thể loại ID %d: %v", typeId, err)
+					continue
+				}
+				newSongTypes = append(newSongTypes, songType)
+			}
+			songEntity.SongType = newSongTypes
+
+			newArtists := []entity.Artist{}
+			for _, artistId := range songReq.Artist {
+				artist, err := songServe.ArtistRepo.GetArtistById(artistId)
+				if err != nil {
+					log.Printf("Không tìm thấy nghệ sĩ ID %d: %v", artistId, err)
+					continue
+				}
+				newArtists = append(newArtists, artist)
+			}
+			songEntity.Artist = newArtists
+			if index < len(songFiles) && songFiles[index].File != nil {
+				resourceUrl, err := Config.HandleUpLoadFile(songFiles[index].File, songReq.NameSong)
+				if err != nil {
+					log.Printf("Upload bài hát thất bại: %v", err)
+				} else {
+					songEntity.SongResource = resourceUrl
+				}
+			}
+
+			errToCreate := songServe.SongRepo.CreateSong(songEntity)
+			if errToCreate != nil {
+				log.Print(errToCreate)
+				log.Printf("update song that bai")
+			} else {
+				log.Printf("update song thành công")
+			}
+
+		}()
+	}
+}
+
 func (songServe *SongService) UpLoadSongBackground(SongReq request.SongRequest, SongFile request.SongFile, ListSongType []entity.SongType, ListArtist []entity.Artist) error {
 	errorRes := errors.New("check")
 	resourceSong, err := Config.HandleUpLoadFile(SongFile.File, SongReq.NameSong)

@@ -45,9 +45,64 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
 	r.HandleFunc("/delete/song", middleware.Chain(Controller.DeleteSongById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/topweek/song", Controller.GetTopSongsThisWeek).Methods("GET")
+	r.HandleFunc("/update/song/album", Controller.UpdateSongAlbum).Methods("POST")
 }
 
 var validate = validator.New()
+
+func (Controller *SongController) UpdateSongAlbum(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(32 << 20)
+	if err != nil {
+		http.Error(w, "Không thể đọc multipart form", http.StatusBadRequest)
+		return
+	}
+	albumIdStr := r.URL.Query().Get("albumid")
+	if albumIdStr == "" {
+		http.Error(w, "albumId là bắt buộc", http.StatusBadRequest)
+		return
+	}
+	var albumId int
+	fmt.Sscanf(albumIdStr, "%d", &albumId)
+	songsJson := r.FormValue("songs")
+	if songsJson == "" {
+		log.Print("looi")
+		http.Error(w, "Thiếu thông tin bài hát (songs)", http.StatusBadRequest)
+		return
+	}
+
+	var songRequests []request.SongRequest
+	err = json.Unmarshal([]byte(songsJson), &songRequests)
+	if err != nil {
+		log.Print(err)
+		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
+		return
+	}
+	SongFile := r.MultipartForm.File["file"]
+	if len(SongFile) != len(songRequests) {
+		log.Print("do dai ko khop")
+		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
+		return
+	}
+	songFiles := []request.SongFile{}
+
+	for i := 0; i < len(SongFile); i++ {
+		file, err := SongFile[i].Open()
+		if err != nil {
+			log.Print(err)
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		songFiles = append(songFiles, request.SongFile{File: file})
+	}
+
+	// Gọi service để xử lý
+	Controller.songService.UpdateSongAlbum(&albumId, songRequests, songFiles)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Đang cập nhật danh sách bài hát cho album...",
+	})
+}
 
 func (Controller *SongController) GetTopSongsThisWeek(w http.ResponseWriter, r *http.Request) {
 	topSongs := Controller.songService.GetBookTopWeek()
