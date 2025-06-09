@@ -14,6 +14,7 @@ import (
 type ArtistService struct {
 	ArtistRepo *repository.ArtistRepository
 	CountryRep *repository.CountryRepository
+	SongRep    *repository.SongRepository
 }
 type MessageResponse struct {
 	Message string
@@ -34,6 +35,7 @@ func InitArtistService() {
 	ArtistServe = &ArtistService{
 		ArtistRepo: repository.ArtistRepo,
 		CountryRep: repository.CountryRepo,
+		SongRep:    repository.SongRepo,
 	}
 }
 func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) response.ArtistResponse {
@@ -222,7 +224,7 @@ func (ArtistServe *ArtistService) GetArtistById(artistId int) (map[string]interf
 
 	}
 	for _, AlbumItem := range AlbumList {
-		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem, ArtistServe.CountryRep))
+		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem, ArtistServe.CountryRep, ArtistServe.SongRep))
 	}
 	response := map[string]interface{}{
 		"artist": ArtistResponse,

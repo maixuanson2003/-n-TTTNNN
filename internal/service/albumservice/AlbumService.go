@@ -54,13 +54,47 @@ func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) respons
 	}
 }
 
-func AlbumEntityMapToAlbumResponse(Album entity.Album, countryRepo *repository.CountryRepository) response.AlbumResponse {
+func AlbumEntityMapToAlbumResponse(Album entity.Album, countryRepo *repository.CountryRepository, songrepo *repository.SongRepository) response.AlbumResponse {
 	SongEntity := Album.Song
 	Artist := Album.Artist
 	ArtistResponse := []response.ArtistResponse{}
-	SongResponse := []response.SongResponse{}
+	SongResponse := []response.SongResponseAlbum{}
 	for _, SongItem := range SongEntity {
-		SongResponse = append(SongResponse, songservice.SongEntityMapToSongResponse(SongItem))
+		songItem, _ := songrepo.GetSongById(SongItem.ID)
+		songArtistResponses := []response.ArtistResponse{}
+		log.Print(songItem.Artist)
+		for _, artist := range songItem.Artist {
+			country, err := countryRepo.GetCountryById(artist.CountryId)
+			if err != nil {
+				log.Printf("Lỗi khi lấy quốc gia của nghệ sĩ ID %d: %v", artist.ID, err)
+				continue
+			}
+			songArtistResponses = append(songArtistResponses, MapArtistEntityToResponse(artist, country.CountryName))
+		}
+
+		// Map thể loại của bài hát
+		songTypeResponses := []response.SongTypeResponse{}
+		for _, songType := range songItem.SongType {
+			songTypeResponses = append(songTypeResponses, response.SongTypeResponse{Id: songType.ID, Type: songType.Type})
+		}
+
+		SongResponse = append(SongResponse, response.SongResponseAlbum{
+			ID:           SongItem.ID,
+			NameSong:     SongItem.NameSong,
+			Description:  SongItem.Description,
+			ReleaseDay:   SongItem.ReleaseDay,
+			CreateDay:    SongItem.CreateDay,
+			UpdateDay:    SongItem.UpdateDay,
+			Point:        SongItem.Point,
+			LikeAmount:   SongItem.LikeAmount,
+			CountryId:    SongItem.CountryId,
+			Status:       SongItem.Status,
+			ListenAmout:  SongItem.ListenAmout,
+			AlbumId:      SongItem.AlbumId,
+			SongResource: SongItem.SongResource,
+			Artist:       songArtistResponses,
+			SongType:     songTypeResponses,
+		})
 	}
 	for _, ArtistItem := range Artist {
 		Country, ErrorToGetCountry := countryRepo.GetCountryById(ArtistItem.CountryId)
@@ -182,7 +216,7 @@ func (AlbumServe *AlbumSerivce) GetListAlbum() ([]response.AlbumResponse, error)
 	}
 	AlbumListResponse := []response.AlbumResponse{}
 	for _, AlbumItem := range AlbumList {
-		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo))
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo, AlbumServe.SongRepo))
 	}
 	return AlbumListResponse, nil
 }
@@ -194,7 +228,7 @@ func (AlbumServe *AlbumSerivce) GetAlbumById(Id int) (response.AlbumResponse, er
 		return response.AlbumResponse{}, ErrorToGetAlbum
 
 	}
-	AlbumRespone := AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo)
+	AlbumRespone := AlbumEntityMapToAlbumResponse(AlbumItem, AlbumServe.CountryRepo, AlbumServe.SongRepo)
 	return AlbumRespone, nil
 }
 func (AlbumServe *AlbumSerivce) GetAlbumByArtist(artistId int) ([]response.AlbumResponse, error) {
@@ -213,7 +247,7 @@ func (AlbumServe *AlbumSerivce) GetAlbumByArtist(artistId int) ([]response.Album
 			log.Print(Error)
 			return nil, Error
 		}
-		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(Album, AlbumServe.CountryRepo))
+		AlbumListResponse = append(AlbumListResponse, AlbumEntityMapToAlbumResponse(Album, AlbumServe.CountryRepo, AlbumServe.SongRepo))
 	}
 	return AlbumListResponse, nil
 }

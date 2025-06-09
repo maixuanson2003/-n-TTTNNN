@@ -10,6 +10,6 @@ type AlbumResponse struct {
 	ArtistOwner string
 	CreateDay   time.Time
 	UpdateDay   time.Time
-	Song        []SongResponse
+	Song        []SongResponseAlbum
 	Artist      []ArtistResponse
 }

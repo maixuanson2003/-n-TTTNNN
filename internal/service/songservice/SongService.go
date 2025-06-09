@@ -97,7 +97,48 @@ func SongEntityMapToSongResponse(Song entity.Song) response.SongResponse {
 		AlbumId:      Song.AlbumId,
 		SongResource: Song.SongResource,
 	}
+}
+func SongEntityMapToSongResponseAlbum(Song entity.Song, countryrep *repository.CountryRepository) response.SongResponseAlbum {
 
+	songArtistResponses := []response.ArtistResponse{}
+
+	for _, artist := range Song.Artist {
+		country, err := countryrep.GetCountryById(artist.CountryId)
+		if err != nil {
+			log.Printf("Lỗi khi lấy quốc gia của nghệ sĩ ID %d: %v", artist.ID, err)
+			continue
+		}
+		songArtistResponses = append(songArtistResponses, response.ArtistResponse{
+			ID:          artist.ID,
+			Name:        artist.Name,
+			BirthDay:    artist.BirthDay,
+			Description: artist.Description,
+			Country:     country.CountryName,
+		})
+	}
+
+	// Map thể loại của bài hát
+	songTypeResponses := []response.SongTypeResponse{}
+	for _, songType := range Song.SongType {
+		songTypeResponses = append(songTypeResponses, response.SongTypeResponse{Id: songType.ID, Type: songType.Type})
+	}
+	return response.SongResponseAlbum{
+		ID:           Song.ID,
+		NameSong:     Song.NameSong,
+		Description:  Song.Description,
+		ReleaseDay:   Song.ReleaseDay,
+		CreateDay:    Song.CreateDay,
+		UpdateDay:    Song.UpdateDay,
+		Point:        Song.Point,
+		LikeAmount:   Song.LikeAmount,
+		Status:       Song.Status,
+		CountryId:    Song.CountryId,
+		ListenAmout:  Song.ListenAmout,
+		AlbumId:      Song.AlbumId,
+		SongResource: Song.SongResource,
+		Artist:       songArtistResponses,
+		SongType:     songTypeResponses,
+	}
 }
 func GetWeekRange() (time.Time, time.Time) {
 	now := time.Now()
@@ -385,14 +426,14 @@ func (songServe *SongService) GetAllSong(Offset int) ([]map[string]interface{}, 
 	}
 	return ListSongResponse, nil
 }
-func (songServe *SongService) GetSongById(Id int) (response.SongResponse, error) {
+func (songServe *SongService) GetSongById(Id int) (response.SongResponseAlbum, error) {
 	SongRepos := songServe.SongRepo
 	Song, ErrorToGetSong := SongRepos.GetSongById(Id)
 	if ErrorToGetSong != nil {
 		log.Print(ErrorToGetSong)
-		return response.SongResponse{}, ErrorToGetSong
+		return response.SongResponseAlbum{}, ErrorToGetSong
 	}
-	SongResponse := SongEntityMapToSongResponse(Song)
+	SongResponse := SongEntityMapToSongResponseAlbum(Song, repository.CountryRepo)
 	return SongResponse, nil
 }
 
