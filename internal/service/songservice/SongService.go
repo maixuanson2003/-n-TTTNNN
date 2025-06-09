@@ -284,7 +284,23 @@ func (songServe *SongService) UpLoadSongBackground(SongReq request.SongRequest, 
 	}
 	return errorRes
 }
-func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int) (MessageResponse, error) {
+func (songServe *SongService) UpLoadSongBackgroundUpdate(songEntity entity.Song, SongFile request.SongFile) error {
+	errorRes := errors.New("check")
+	resourceSong, err := Config.HandleUpLoadFile(SongFile.File, songEntity.NameSong)
+	if songEntity.NameSong == "" {
+		errorRes = errors.New("require name song")
+	}
+	if err != nil {
+		errorRes = err
+	}
+	songEntity.SongResource = resourceSong
+	errorToUpdateSong := songServe.SongRepo.UpdateSong(songEntity, songEntity.ID)
+	if errorToUpdateSong != nil {
+		errorRes = errorToUpdateSong
+	}
+	return errorRes
+}
+func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int, SongFile request.SongFile) (MessageResponse, error) {
 	Song, errToGetSong := songServe.SongRepo.GetSongById(Id)
 	if errToGetSong != nil {
 		return MessageResponse{
@@ -316,6 +332,17 @@ func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int) (M
 	Song.Description = SongReq.Description
 	Song.Point = SongReq.Point
 	Song.CountryId = SongReq.CountryId
+	go func() {
+		if SongFile.File != nil {
+			errs := songServe.UpLoadSongBackgroundUpdate(Song, SongFile)
+			if errs != nil {
+				log.Print("some thing wrong")
+			}
+			log.Print("upload success")
+
+		}
+
+	}()
 	err := songServe.SongRepo.UpdateSong(Song, Id)
 	if err != nil {
 		return MessageResponse{

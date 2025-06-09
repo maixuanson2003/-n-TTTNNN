@@ -183,7 +183,23 @@ func (Controller *SongController) UpdateSong(Write http.ResponseWriter, Req *htt
 		http.Error(Write, "failed to Json", http.StatusBadRequest)
 		return
 	}
-	resp, errToUpdate := Controller.songService.UpdateSong(SongRequest, SongId)
+	var SongFile request.SongFile
+	file, _, err := Req.FormFile("file")
+	if err != nil {
+		// Không có file gửi lên => đặt file là nil
+		if strings.Contains(err.Error(), "no such file") {
+			SongFile.File = nil
+		} else {
+			// Có lỗi khi lấy file
+			log.Print(err)
+			http.Error(Write, "failed to get file", http.StatusBadRequest)
+			return
+		}
+	} else {
+		SongFile.File = file
+	}
+
+	resp, errToUpdate := Controller.songService.UpdateSong(SongRequest, SongId, SongFile)
 	if errToUpdate != nil {
 		log.Print(errToUpdate)
 
