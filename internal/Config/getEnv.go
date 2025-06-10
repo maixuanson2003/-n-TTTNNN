@@ -106,3 +106,12 @@ func (*Env) FromEmail() string {
 	}
 	return os.Getenv("FROM_EMAIL")
 }
+
+func (*Env) GeminiAiKey() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Print(err)
+		return ""
+	}
+	return os.Getenv("GEMINI_API_KEY")
+}

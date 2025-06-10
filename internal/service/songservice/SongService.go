@@ -140,40 +140,123 @@ func SongEntityMapToSongResponseAlbum(Song entity.Song, countryrep *repository.C
 		SongType:     songTypeResponses,
 	}
 }
-func GetWeekRange() (time.Time, time.Time) {
+func GetTimeRange(rangeType string) (time.Time, time.Time) {
 	now := time.Now()
-	weekday := int(now.Weekday())
+	var start, end time.Time
 
-	if weekday == 0 {
-		weekday = 7
+	switch rangeType {
+	case "week":
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		start = now.AddDate(0, 0, -weekday+1)
+		start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+		end = start.AddDate(0, 0, 6)
+		end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 0, end.Location())
+	case "month":
+		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		end = start.AddDate(0, 1, -1)
+		end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 0, end.Location())
+	default:
+		// mặc định là tuần
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		start = now.AddDate(0, 0, -weekday+1)
+		start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+		end = start.AddDate(0, 0, 6)
+		end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 0, end.Location())
 	}
 
-	startOfWeek := now.AddDate(0, 0, -weekday+1)
-	startOfWeek = time.Date(startOfWeek.Year(), startOfWeek.Month(), startOfWeek.Day(), 0, 0, 0, 0, startOfWeek.Location())
-
-	endOfWeek := startOfWeek.AddDate(0, 0, 6)
-	endOfWeek = time.Date(endOfWeek.Year(), endOfWeek.Month(), endOfWeek.Day(), 23, 59, 59, 0, endOfWeek.Location())
-
-	return startOfWeek, endOfWeek
+	return start, end
 }
-func (songServe *SongService) GetBookTopWeek() []response.SongResponse {
+
+type SongChartData struct {
+	Name         string `json:"name"`
+	ListenPerDay [7]int `json:"listen_per_day"` // thứ 2 -> chủ nhật
+}
+
+func (songServe *SongService) GetWeeklyChartDataPerDay(topN int) []SongChartData {
+	startWeek, endWeek := GetTimeRange("week")
 	SongRepo := songServe.SongRepo
 	ListSong, err := SongRepo.FindAll()
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
-	startWeek, endWeek := GetWeekRange()
+
+	type songWithListen struct {
+		Song         entity.Song
+		Total        int
+		ListenPerDay [7]int
+	}
+
+	var songsData []songWithListen
+
+	for i := range ListSong {
+		var listenPerDay [7]int
+		total := 0
+		for _, hist := range ListSong[i].ListenHistory {
+			if !hist.ListenDay.Before(startWeek) && !hist.ListenDay.After(endWeek) {
+				dayIdx := int(hist.ListenDay.Weekday())
+				if dayIdx == 0 {
+					dayIdx = 6
+				} else {
+					dayIdx = dayIdx - 1
+				}
+				listenPerDay[dayIdx]++
+				total++
+			}
+		}
+		// Chỉ lấy các bài có lượt nghe > 0
+		if total > 0 {
+			songsData = append(songsData, songWithListen{
+				Song:         ListSong[i],
+				Total:        total,
+				ListenPerDay: listenPerDay,
+			})
+		}
+	}
+
+	sort.Slice(songsData, func(i, j int) bool {
+		return songsData[i].Total > songsData[j].Total
+	})
+
+	if len(songsData) > topN {
+		songsData = songsData[:topN]
+	}
+
+	var chart []SongChartData
+	for _, item := range songsData {
+		chart = append(chart, SongChartData{
+			Name:         item.Song.NameSong,
+			ListenPerDay: item.ListenPerDay,
+		})
+	}
+
+	return chart
+}
+func (songServe *SongService) GetBookTopRange(rangeType string) []response.SongResponse {
+	SongRepo := songServe.SongRepo
+	ListSong, err := SongRepo.FindAll()
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	startRange, endRange := GetTimeRange(rangeType)
 	pairSong := make(map[*entity.Song]int32)
-	for _, SongItem := range ListSong {
+	for i := range ListSong {
+		SongItem := &ListSong[i]
 		count := int32(0)
 		for _, listenItem := range SongItem.ListenHistory {
-			if !listenItem.ListenDay.Before(startWeek) && !listenItem.ListenDay.After(endWeek) {
+			if !listenItem.ListenDay.Before(startRange) && !listenItem.ListenDay.After(endRange) {
 				count++
 			}
 		}
 		if count > 0 {
-			pairSong[&SongItem] = count
+			pairSong[SongItem] = count
 		}
 	}
 	type songSlice struct {
@@ -200,7 +283,6 @@ func (songServe *SongService) GetBookTopWeek() []response.SongResponse {
 	}
 
 	return SongResponse
-
 }
 func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFile request.SongFile) (MessageResponse, error) {
 	ListSongType := []entity.SongType{}
@@ -801,6 +883,64 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	return SongRecommendId, nil
 
 }
+func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongResponse, error) {
+	type SongSimilarity struct {
+		ID         int
+		Similarity float64
+	}
+
+	// Lấy toàn bộ vector đặc trưng bài hát và thẻ đặc trưng
+	vectorFeatureSong, featureTags, err := helper.GetVectorFeatureForSong()
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+
+	// Lấy vector đặc trưng của bài hát đầu vào
+	vectorTargetSong, err := helper.GetVectorFeatureForUser(songId, featureTags)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+
+	similarityMap := map[int]float64{}
+
+	// So sánh với tất cả các bài hát khác
+	for id, vector := range vectorFeatureSong {
+		if id == songId {
+			continue // bỏ qua chính nó
+		}
+		score := helper.GetCosineSimilar(vectorTargetSong, vector)
+		similarityMap[id] = score
+	}
+
+	// Chuyển sang slice và sort
+	similarities := []SongSimilarity{}
+	for id, score := range similarityMap {
+		similarities = append(similarities, SongSimilarity{
+			ID:         id,
+			Similarity: score,
+		})
+	}
+	sort.Slice(similarities, func(i, j int) bool {
+		return similarities[i].Similarity > similarities[j].Similarity
+	})
+
+	// Trả về top N bài hát tương tự
+	topN := 5
+	result := []response.SongResponse{}
+	for i := 0; i < topN && i < len(similarities); i++ {
+		songEntity, err := SongServe.SongRepo.GetSongById(similarities[i].ID)
+		if err != nil {
+			log.Print(err)
+			continue // hoặc return nil, err nếu bạn muốn fail sớm
+		}
+		result = append(result, SongEntityMapToSongResponse(songEntity))
+	}
+
+	return result, nil
+}
+
 func (SongServe *SongService) SearchSongByKeyWord(keyWord string) ([]map[string]interface{}, error) {
 	SongRepo := SongServe.SongRepo
 	SongResult, errorToSearchSong := SongRepo.SearchSongByKey(keyWord)

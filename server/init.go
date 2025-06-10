@@ -4,6 +4,7 @@ import (
 	database "ten_module/Database"
 	middleware "ten_module/Middleware"
 	"ten_module/internal/Helper/elastichelper"
+	openai "ten_module/internal/Helper/openAi"
 	albumcontroller "ten_module/internal/controller/AlbumController"
 	artistcontroller "ten_module/internal/controller/ArtistController"
 	Authcontroller "ten_module/internal/controller/AuthController"
@@ -22,6 +23,7 @@ import (
 
 func InitSingleton() {
 	middleware.InitMiddleWare()
+	openai.InitGeminiClient()
 	authservice.Init()
 	database.Init()
 	elastichelper.InitElasticHelpers()

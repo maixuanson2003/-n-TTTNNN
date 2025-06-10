@@ -13,8 +13,10 @@ type Song struct {
 	LikeAmount    int
 	Status        string
 	CountryId     int
+	Country       Country
 	ListenAmout   int
-	AlbumId       *int       `gorm:"default:null"`
+	AlbumId       *int `gorm:"default:null"`
+	Album         Album
 	SongType      []SongType `gorm:"many2many:Song_SongType;constraint:OnDelete:CASCADE;"`
 	SongResource  string     `gorm:"not null"`
 	ListenHistory []ListenHistory

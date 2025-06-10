@@ -11,6 +11,7 @@ import (
 	"strings"
 	middleware "ten_module/Middleware"
 	"ten_module/internal/DTO/request"
+	openai "ten_module/internal/Helper/openAi"
 	"ten_module/internal/service/songservice"
 
 	"github.com/go-playground/validator/v10"
@@ -46,10 +47,81 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/delete/song", middleware.Chain(Controller.DeleteSongById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/topweek/song", Controller.GetTopSongsThisWeek).Methods("GET")
 	r.HandleFunc("/update/song/album", Controller.UpdateSongAlbum).Methods("POST")
+	r.HandleFunc("/chatbot/song", Controller.ChatMusicHandler).Methods("POST")
+	r.HandleFunc("/song/week/chart", Controller.GetWeeklyChartDataPerDay).Methods("GET")
+	r.HandleFunc("/compe/song/top", Controller.GetTopSongCompe).Methods("GET")
+	r.HandleFunc("/getrecommed/song", Controller.GetSimilarSongsRecommend).Methods("GET")
 }
 
 var validate = validator.New()
 
+func (Controller *SongController) GetTopSongCompe(w http.ResponseWriter, r *http.Request) {
+	ranges := r.URL.Query().Get("range")
+	log.Print(ranges)
+	topSongs := Controller.songService.GetBookTopRange(ranges)
+
+	w.Header().Set("Content-Type", "application/json")
+	if topSongs == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Không thể lấy danh sách bài hát",
+		})
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    topSongs,
+	})
+}
+func (Controller *SongController) GetWeeklyChartDataPerDay(w http.ResponseWriter, r *http.Request) {
+	topN := 3
+	query := r.URL.Query()
+	if val := query.Get("top"); val != "" {
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			topN = n
+		}
+	}
+	chartData := Controller.songService.GetWeeklyChartDataPerDay(topN)
+	w.Header().Set("Content-Type", "application/json")
+	if chartData == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Không thể lấy dữ liệu chart",
+		})
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    chartData,
+	})
+}
+func (Controller *SongController) ChatMusicHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Chỉ hỗ trợ POST", http.StatusMethodNotAllowed)
+		return
+	}
+	message := r.URL.Query().Get("message")
+
+	query, err := openai.ExtractMusicInfo(message)
+	if err != nil {
+		log.Print(err)
+		http.Error(w, fmt.Sprintf("Lỗi GPT: %v", err), http.StatusInternalServerError)
+		return
+	}
+	song, errs := Controller.songService.SongRepo.SearchOrRecommendSongs(query)
+	if errs != nil {
+		log.Print(err)
+		http.Error(w, "ko fetch dc du lieu", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(song)
+}
 func (Controller *SongController) UpdateSongAlbum(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
@@ -105,7 +177,7 @@ func (Controller *SongController) UpdateSongAlbum(w http.ResponseWriter, r *http
 }
 
 func (Controller *SongController) GetTopSongsThisWeek(w http.ResponseWriter, r *http.Request) {
-	topSongs := Controller.songService.GetBookTopWeek()
+	topSongs := Controller.songService.GetBookTopRange("week")
 
 	w.Header().Set("Content-Type", "application/json")
 	if topSongs == nil {
@@ -340,6 +412,27 @@ func (Controller *SongController) GetSongForUserRecommend(Write http.ResponseWri
 	Write.WriteHeader(http.StatusOK)
 	json.NewEncoder(Write).Encode(Resp)
 }
+func (Controller *SongController) GetSimilarSongsRecommend(w http.ResponseWriter, r *http.Request) {
+	songIdStr := r.URL.Query().Get("songid")
+	if songIdStr == "" {
+		http.Error(w, "missing songid", http.StatusBadRequest)
+		return
+	}
+	songId, err := strconv.Atoi(songIdStr)
+	if err != nil {
+		http.Error(w, "invalid songid", http.StatusBadRequest)
+		return
+	}
+	resp, err := Controller.songService.GetSimilarSongs(songId)
+	if err != nil {
+		http.Error(w, "failed to get recommendations", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (Controller *SongController) SearchSongByKeyWord(Write http.ResponseWriter, Req *http.Request) {
 	KeyWord := Req.URL.Query().Get("keyword")
 	Resp, ErrorToSearchSong := Controller.songService.SearchSongByKeyWord(KeyWord)

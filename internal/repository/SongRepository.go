@@ -2,8 +2,10 @@ package repository
 
 import (
 	"log"
+	"strings"
 	database "ten_module/Database"
 	entity "ten_module/internal/Entity"
+	gemini "ten_module/internal/Helper/openAi"
 
 	"gorm.io/gorm"
 )
@@ -208,4 +210,73 @@ func (songRepository *SongRepository) DeleteSongsByAlbumId(albumId int) error {
 
 		return nil
 	})
+}
+func (r *SongRepository) SearchOrRecommendSongs(query *gemini.MusicQuery) ([]entity.Song, error) {
+	var songs []entity.Song
+
+	db := r.DB.Model(&entity.Song{}).
+		Preload("Artist").
+		Preload("SongType").
+		Preload("Album")
+
+	if query.Song != "" {
+		db = db.Where("LOWER(name_song) LIKE ?", "%"+strings.ToLower(query.Song)+"%")
+	}
+
+	if query.Artist != "" {
+		db = db.Joins("JOIN song_artists ON song_artists.song_id = songs.id").
+			Joins("JOIN artists ON artists.id = song_artists.artist_id").
+			Where("LOWER(artists.name) LIKE ?", "%"+strings.ToLower(query.Artist)+"%")
+	}
+
+	if query.Album != "" {
+		db = db.Joins("JOIN albums ON albums.id = songs.album_id").
+			Where("LOWER(albums.name) LIKE ?", "%"+strings.ToLower(query.Album)+"%")
+	}
+
+	if query.Genre != "" {
+		db = db.Joins("JOIN song_song_types ON song_song_types.song_id = songs.id").
+			Joins("JOIN song_types ON song_types.id = song_song_types.song_type_id").
+			Where("LOWER(song_types.type) LIKE ?", "%"+strings.ToLower(query.Genre)+"%")
+	}
+
+	if query.Keywords != "" {
+		db = db.Where("LOWER(songs.name_song) LIKE ? OR LOWER(songs.description) LIKE ?",
+			"%"+strings.ToLower(query.Keywords)+"%",
+			"%"+strings.ToLower(query.Keywords)+"%")
+	}
+
+	switch query.TimeRange {
+	case "today":
+		db = db.Where("DATE(songs.create_day) = CURDATE()")
+	case "week":
+		db = db.Where("YEARWEEK(songs.create_day, 1) = YEARWEEK(CURDATE(), 1)")
+	case "month":
+		db = db.Where("MONTH(songs.create_day) = MONTH(CURDATE()) AND YEAR(create_day) = YEAR(CURDATE())")
+	case "year":
+		db = db.Where("YEAR(songs.create_day) = YEAR(CURDATE())")
+	}
+
+	switch query.SortBy {
+	case "most_played":
+		db = db.Order("songs.listen_amout DESC")
+	case "latest":
+		db = db.Order("songs.create_day DESC")
+	case "top":
+		db = db.Order("songs.point DESC, songs.like_amount DESC")
+	case "popular":
+		db = db.Order("songs.like_amount DESC")
+	default:
+		db = db.Order("songs.create_day DESC")
+	}
+	if query.Intent == "play" {
+		db = db.Limit(1)
+	} else {
+		db = db.Limit(10)
+	}
+	if err := db.Distinct("songs.*").Find(&songs).Error; err != nil {
+		return nil, err
+	}
+
+	return songs, nil
 }
