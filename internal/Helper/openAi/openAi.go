@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"ten_module/internal/Config"
+	"ten_module/internal/repository"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -57,10 +58,9 @@ func (g *GeminiClient) GenerateText(prompt string) (string, error) {
 type MusicQuery struct {
 	Genre    string `json:"genre"`
 	Artist   string `json:"artist"`
-	Song     string `json:"song"`
-	Album    string `json:"album"`
 	Intent   string `json:"intent"`
 	Keywords string `json:"keywords"`
+	country  string `json:"country"`
 
 	// Mới thêm
 	TimeRange string `json:"time_range"`
@@ -68,23 +68,76 @@ type MusicQuery struct {
 }
 
 func getSimplePrompt() string {
-	return `
-Bạn là trợ lý âm nhạc. Phân tích câu người dùng và trả về JSON:
+	// Lấy dữ liệu
+	Crepo, _ := repository.CountryRepo.FindAll()
+	songtype, _ := repository.SongTypeRepo.FindAll()
+	Art, _ := repository.ArtistRepo.FindAll()
+
+	// Map các giá trị thành mảng chuỗi
+	var countryNames []string
+	for _, c := range Crepo {
+		countryNames = append(countryNames, fmt.Sprintf(`"%s"`, c.CountryName))
+	}
+
+	var songTypes []string
+	for _, s := range songtype {
+		songTypes = append(songTypes, fmt.Sprintf(`"%s"`, s.Type))
+	}
+
+	var artistNames []string
+	for _, a := range Art {
+		artistNames = append(artistNames, fmt.Sprintf(`"%s"`, a.Name))
+	}
+
+	// Chuyển sang chuỗi JSON-like
+	countriesStr := strings.Join(countryNames, ", ")
+	songTypesStr := strings.Join(songTypes, ", ")
+	artistsStr := strings.Join(artistNames, ", ")
+
+	// Prompt với các gợi ý cụ thể
+	return fmt.Sprintf(`Bạn là trợ lý âm nhạc. Phân tích câu người dùng và trả về JSON:
 
 {
-  "genre": "thể loại nhạc (pop, rap, ballad, rock, edm, vpop...)",
-  "artist": "tên nghệ sĩ nếu có",
-  "song": "tên bài hát cụ thể nếu có",
-  "album": "tên album nếu có",
+  "genre": "thể loại nhạc (ví dụ: %s)",
+  "artist": "tên nghệ sĩ nếu có (ví dụ: %s)",
   "intent": "play, search, recommend, top",
   "keywords": "từ khóa tìm kiếm chung",
-  "time_range": "today, week, month, year - nếu có yêu cầu về thời gian",
+  "country": "tên đất nước (ví dụ: %s)",
+  "time_range": "week, month - nếu có yêu cầu về thời gian",
   "sort_by": "most_played, latest, top, popular - cách sắp xếp"
 }
 
 Quy tắc phân tích:
+
+1. Ý định (intent):
+- Nếu người dùng yêu cầu phát nhạc: intent = "play"
+- Nếu người dùng yêu cầu tìm kiếm thông tin (tên bài, nghệ sĩ...): intent = "search"
+- Nếu người dùng hỏi gợi ý ("phù hợp", "nên nghe gì", "gợi ý", "recommend"): intent = "recommend"
+- Nếu người dùng hỏi nhạc top, hay nhất, xếp hạng: intent = "top"
+
+2. Tên nghệ sĩ (artist):
+- So khớp chuỗi trong câu với danh sách nghệ sĩ (%s)
+- Nếu có khớp thì điền vào trường "artist"
+
+3. Thể loại nhạc (genre):
+- So khớp các từ với danh sách thể loại (%s)
+- Nếu không khớp rõ ràng, nhưng ngữ cảnh như "lái xe", "tập gym", "ngủ", "làm việc", "thư giãn" thì suy luận genre phù hợp:
+  - "lái xe" → ["rock", "edm", "lofi"]
+  - "tập gym" → ["edm", "hiphop", "remix"]
+  - "thư giãn" → ["lofi", "acoustic", "jazz"]
+  - "ngủ" → ["instrumental", "ambient", "piano"]
+  - "làm việc" → ["lofi", "instrumental"]
+  - "tiệc tùng" → ["edm", "dance", "pop"]
+
+4. Quốc gia (country):
+- Nếu có đề cập tên quốc gia hoặc vùng nhạc (ví dụ: "nhạc Hàn", "Kpop", "USUK", "Vpop") → country = tương ứng trong danh sách (%s)
+
+5. Từ khóa:
+- Nếu người dùng dùng từ không xác định rõ ràng (ví dụ: "bài buồn", "vui vẻ", "đi bar", "cảm xúc") thì đưa vào "keywords"
+
+6. Thời gian và sắp xếp:
 - "hôm nay", "today" → time_range: "today"
-- "tuần này", "this week" → time_range: "week"  
+- "tuần này", "this week" → time_range: "week"
 - "tháng này", "this month" → time_range: "month"
 - "năm nay", "this year" → time_range: "year"
 - "mới nhất", "latest", "vừa ra" → sort_by: "latest"
@@ -93,124 +146,12 @@ Quy tắc phân tích:
 - "nghe nhiều", "được nghe nhiều" → sort_by: "most_played"
 
 Chỉ trả về JSON, không giải thích.
-`
-}
-
-// Prompt cho tìm kiếm nhạc
-func getSearchPrompt() string {
-	return `
-Phân tích yêu cầu tìm kiếm nhạc và trả về JSON:
-
-Ví dụ:
-- "Tìm bài hát ballad mới nhất" → {"genre": "ballad", "intent": "search", "sort_by": "latest"}
-- "Nghe Sơn Tùng MTP" → {"artist": "Sơn Tùng MTP", "intent": "play"}
-- "Tìm bài Lạc Trôi" → {"song": "Lạc Trôi", "intent": "search"}
-- "Album Hoàng Thùy Linh hot nhất" → {"artist": "Hoàng Thùy Linh", "intent": "search", "sort_by": "popular"}
-- "Nhạc pop tuần này" → {"genre": "pop", "intent": "search", "time_range": "week"}
-- "Bài hát được nghe nhiều nhất tháng này" → {"intent": "search", "time_range": "month", "sort_by": "most_played"}
-
-{
-  "genre": "",
-  "artist": "",
-  "song": "",
-  "album": "",
-  "intent": "play/search/recommend",
-  "keywords": "",
-  "time_range": "today/week/month/year",
-  "sort_by": "most_played/latest/top/popular"
-}
-
-Chỉ trả về JSON.
-`
-}
-
-// Prompt cho gợi ý nhạc
-func getRecommendPrompt() string {
-	return `
-Phân tích yêu cầu gợi ý nhạc và trả về JSON:
-
-Tập trung vào:
-- Thể loại nhạc
-- Nghệ sĩ yêu thích  
-- Bài hát tương tự
-- Album hay
-- Thời gian phát hành
-- Cách sắp xếp
-
-Ví dụ:
-- "Gợi ý nhạc pop mới nhất" → {"genre": "pop", "intent": "recommend", "sort_by": "latest"}
-- "Nhạc giống như Đen Vâu" → {"artist": "Đen Vâu", "intent": "recommend"}
-- "Tương tự bài Nơi Này Có Anh" → {"song": "Nơi Này Có Anh", "intent": "recommend"}
-- "Gợi ý nhạc hot tuần này" → {"intent": "recommend", "time_range": "week", "sort_by": "popular"}
-- "Nhạc hay nhất năm nay" → {"intent": "recommend", "time_range": "year", "sort_by": "top"}
-- "Nhạc được nghe nhiều tháng này" → {"intent": "recommend", "time_range": "month", "sort_by": "most_played"}
-
-{
-  "genre": "",
-  "artist": "",
-  "song": "",
-  "album": "",
-  "intent": "recommend",
-  "keywords": "",
-  "time_range": "today/week/month/year",
-  "sort_by": "most_played/latest/top/popular"
-}
-
-Chỉ trả về JSON.
-`
-}
-
-// Prompt cho top nhạc
-func getTopPrompt() string {
-	return `
-Phân tích yêu cầu tìm top nhạc và trả về JSON:
-
-Tập trung vào:
-- Top bài hát theo thể loại
-- Top nghệ sĩ
-- Top album
-- Thời gian (hôm nay, tuần, tháng, năm)
-- Tiêu chí sắp xếp
-
-Ví dụ:
-- "Top 10 bài hát hay nhất" → {"intent": "top", "sort_by": "top"}
-- "Top nhạc pop tuần này" → {"genre": "pop", "intent": "top", "time_range": "week"}
-- "BXH Vpop tháng này" → {"genre": "vpop", "intent": "top", "time_range": "month"}
-- "Top bài hát được nghe nhiều nhất" → {"intent": "top", "sort_by": "most_played"}
-- "Nhạc trending hôm nay" → {"intent": "top", "time_range": "today", "sort_by": "popular"}
-
-{
-  "genre": "",
-  "artist": "",
-  "song": "",
-  "album": "",
-  "intent": "top",
-  "keywords": "",
-  "time_range": "today/week/month/year",
-  "sort_by": "most_played/latest/top/popular"
-}
-
-Chỉ trả về JSON.
-`
+`, songTypesStr, artistsStr, countriesStr, artistsStr, songTypesStr, countriesStr)
 }
 
 func ExtractMusicInfo(userInput string) (*MusicQuery, error) {
-	// Chọn prompt dựa trên từ khóa
 	var prompt string
-	input := strings.ToLower(userInput)
-
-	if strings.Contains(input, "top") || strings.Contains(input, "bxh") ||
-		strings.Contains(input, "bảng xếp hạng") || strings.Contains(input, "trending") ||
-		strings.Contains(input, "thịnh hành") {
-		prompt = getTopPrompt()
-	} else if strings.Contains(input, "tìm") || strings.Contains(input, "search") {
-		prompt = getSearchPrompt()
-	} else if strings.Contains(input, "gợi ý") || strings.Contains(input, "recommend") ||
-		strings.Contains(input, "muốn nghe") || strings.Contains(input, "đề xuất") {
-		prompt = getRecommendPrompt()
-	} else {
-		prompt = getSimplePrompt()
-	}
+	prompt = getSimplePrompt()
 
 	fullPrompt := prompt + "\n\nCâu người dùng: " + userInput
 
@@ -246,117 +187,6 @@ func ExtractMusicInfo(userInput string) (*MusicQuery, error) {
 		return nil, fmt.Errorf("lỗi parse JSON: %w", err)
 	}
 
-	// Post-processing: normalize và validate data
-	query = normalizeQuery(query)
-
 	log.Printf("Final parsed query: %+v", query)
 	return &query, nil
-}
-
-// Hàm normalize và validate dữ liệu
-func normalizeQuery(query MusicQuery) MusicQuery {
-	// Normalize intent
-	intent := strings.ToLower(strings.TrimSpace(query.Intent))
-	switch intent {
-	case "play", "nghe":
-		query.Intent = "play"
-	case "search", "tìm", "tim":
-		query.Intent = "search"
-	case "recommend", "gợi ý", "goi y", "đề xuất", "de xuat":
-		query.Intent = "recommend"
-	case "top", "bxh", "trending":
-		query.Intent = "top"
-	default:
-		if query.Song != "" {
-			query.Intent = "play" // Nếu có tên bài hát cụ thể thì default là play
-		} else {
-			query.Intent = "search" // Default là search
-		}
-	}
-
-	// Normalize time_range
-	timeRange := strings.ToLower(strings.TrimSpace(query.TimeRange))
-	switch timeRange {
-	case "today", "hôm nay", "hom nay":
-		query.TimeRange = "today"
-	case "week", "tuần này", "tuan nay", "this week":
-		query.TimeRange = "week"
-	case "month", "tháng này", "thang nay", "this month":
-		query.TimeRange = "month"
-	case "year", "năm nay", "nam nay", "this year":
-		query.TimeRange = "year"
-	default:
-		query.TimeRange = ""
-	}
-
-	// Normalize sort_by
-	sortBy := strings.ToLower(strings.TrimSpace(query.SortBy))
-	switch sortBy {
-	case "most_played", "nghe nhiều", "nghe nhieu", "được nghe nhiều", "duoc nghe nhieu":
-		query.SortBy = "most_played"
-	case "latest", "mới nhất", "moi nhat", "vừa ra", "vua ra", "newest":
-		query.SortBy = "latest"
-	case "top", "hay nhất", "hay nhat", "xuất sắc", "xuat sac", "best":
-		query.SortBy = "top"
-	case "popular", "hot nhất", "hot nhat", "phổ biến", "pho bien", "trending":
-		query.SortBy = "popular"
-	default:
-		// Set default sort based on intent
-		switch query.Intent {
-		case "top":
-			query.SortBy = "top"
-		case "play":
-			query.SortBy = "most_played"
-		default:
-			query.SortBy = "latest"
-		}
-	}
-
-	// Normalize genre
-	genre := strings.ToLower(strings.TrimSpace(query.Genre))
-	switch genre {
-	case "vpop", "v-pop", "việt pop", "viet pop":
-		query.Genre = "vpop"
-	case "kpop", "k-pop", "hàn quốc", "han quoc", "korean pop":
-		query.Genre = "kpop"
-	case "usuk", "us-uk", "âu mỹ", "au my", "english":
-		query.Genre = "âu mỹ"
-	case "ballad", "balad":
-		query.Genre = "ballad"
-	case "rap", "hiphop", "hip-hop", "hip hop":
-		query.Genre = "rap"
-	case "pop":
-		query.Genre = "pop"
-	case "rock":
-		query.Genre = "rock"
-	case "edm", "electronic", "điện tử", "dien tu":
-		query.Genre = "EDM"
-	case "jazz":
-		query.Genre = "jazz"
-	case "blues":
-		query.Genre = "blues"
-	case "country":
-		query.Genre = "country"
-	case "folk", "dân ca", "dan ca":
-		query.Genre = "folk"
-	}
-
-	// Clean empty strings
-	if strings.TrimSpace(query.Genre) == "" {
-		query.Genre = ""
-	}
-	if strings.TrimSpace(query.Artist) == "" {
-		query.Artist = ""
-	}
-	if strings.TrimSpace(query.Song) == "" {
-		query.Song = ""
-	}
-	if strings.TrimSpace(query.Album) == "" {
-		query.Album = ""
-	}
-	if strings.TrimSpace(query.Keywords) == "" {
-		query.Keywords = ""
-	}
-
-	return query
 }

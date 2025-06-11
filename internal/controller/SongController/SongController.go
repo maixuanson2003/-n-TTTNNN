@@ -112,12 +112,7 @@ func (Controller *SongController) ChatMusicHandler(w http.ResponseWriter, r *htt
 		http.Error(w, fmt.Sprintf("Lỗi GPT: %v", err), http.StatusInternalServerError)
 		return
 	}
-	song, errs := Controller.songService.SongRepo.SearchOrRecommendSongs(query)
-	if errs != nil {
-		log.Print(err)
-		http.Error(w, "ko fetch dc du lieu", http.StatusInternalServerError)
-		return
-	}
+	song := Controller.songService.GetDataFromPromb(query)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(song)

@@ -14,6 +14,7 @@ import (
 	entity "ten_module/internal/Entity"
 	helper "ten_module/internal/Helper/contentbase"
 	"ten_module/internal/Helper/elastichelper"
+	gemini "ten_module/internal/Helper/openAi"
 	"ten_module/internal/repository"
 	"time"
 )
@@ -178,6 +179,20 @@ type SongChartData struct {
 	ListenPerDay [7]int `json:"listen_per_day"` // thứ 2 -> chủ nhật
 }
 
+func (songServe *SongService) GetDataFromPromb(query *gemini.MusicQuery) []response.SongResponse {
+	log.Print(query)
+	song, errs := songServe.SongRepo.RecommendSongs(query.Genre, query.Artist, query.Keywords, query.TimeRange, query.SortBy)
+	if errs != nil {
+		return nil
+	}
+	SongResponse := []response.SongResponse{}
+
+	for i := 0; i < len(song); i++ {
+		SongResponse = append(SongResponse, SongEntityMapToSongResponse(song[i]))
+	}
+	return SongResponse
+
+}
 func (songServe *SongService) GetWeeklyChartDataPerDay(topN int) []SongChartData {
 	startWeek, endWeek := GetTimeRange("week")
 	SongRepo := songServe.SongRepo
