@@ -2,6 +2,7 @@ package reviewcontroller
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,6 +48,7 @@ func (ReviewControll *ReviewController) CreateReview(Write http.ResponseWriter, 
 
 }
 func (ReviewControll *ReviewController) GetListReview(Write http.ResponseWriter, Request *http.Request) {
+	log.Print("ssss")
 	Resp, ErrorToGetListReview := ReviewControll.ReviewServe.GetListReview()
 	if ErrorToGetListReview != nil {
 		http.Error(Write, "faile to get list review", http.StatusBadRequest)

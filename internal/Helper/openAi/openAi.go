@@ -56,13 +56,11 @@ func (g *GeminiClient) GenerateText(prompt string) (string, error) {
 }
 
 type MusicQuery struct {
-	Genre    string `json:"genre"`
-	Artist   string `json:"artist"`
-	Intent   string `json:"intent"`
-	Keywords string `json:"keywords"`
-	country  string `json:"country"`
-
-	// Mới thêm
+	Genre     string `json:"genre"`
+	Artist    string `json:"artist"`
+	Intent    string `json:"intent"`
+	Keywords  string `json:"keywords"`
+	country   string `json:"country"`
 	TimeRange string `json:"time_range"`
 	SortBy    string `json:"sort_by"`
 }

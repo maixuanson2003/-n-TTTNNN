@@ -140,7 +140,7 @@ func (server *Server) Run(address *string, databases *gorm.DB) {
 
 	// Cấu hình CORS
 	Cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With", "Accept"},
 		AllowCredentials: true,

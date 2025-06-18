@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	"sort"
@@ -826,13 +825,11 @@ func (SongServe *SongService) SearchSong(Keyword string) ([]response.SongRespons
 }
 func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResponse, error) {
 	UserRepo := SongServe.UserRepo
-	ListenRepos := SongServe.HisRepo
 	type SongSimilarity struct {
 		ID         int
 		Similarity float64
 	}
 	vectorFeatureSong, FeatureTag, Error := helper.GetVectorFeatureForSong()
-	log.Print(vectorFeatureSong)
 	if Error != nil {
 		log.Print(Error)
 		return nil, Error
@@ -844,30 +841,28 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	}
 	SongId := []int{}
 	ListenHistory := UserItem.ListenHistory
+
 	for _, Item := range ListenHistory {
-		SongId = append(SongId, Item.SongId)
+		SongId = append(SongId, Item.ID)
+	}
+	userVector, errs := helper.GetUserProfile(userId, FeatureTag)
+	log.Print("debug")
+	log.Print(FeatureTag)
+	log.Print(userVector)
+	log.Print("debug")
+	if errs != nil {
+		return nil, errs
 	}
 
 	similarityMap := map[int]float64{}
 	for _, SongIds := range SongId {
 		SongItemId := SongIds
-		count, err := ListenRepos.CountNumberSongId(SongIds)
-		if err != nil {
-			log.Print(err)
-			return nil, err
-		}
-		vectorSongItemId, errorToCaculate := helper.GetVectorFeatureForUser(SongItemId, FeatureTag)
-		if errorToCaculate != nil {
-			log.Print(errorToCaculate)
-			return nil, errorToCaculate
-		}
 		for Id, vector := range vectorFeatureSong {
 			if Id == SongItemId {
 				continue
 			}
-			SimilarScore := helper.GetCosineSimilar(vectorSongItemId, vector)
-			weightedSimilarity := SimilarScore * math.Sqrt(float64(count))
-			similarityMap[Id] += weightedSimilarity
+			SimilarScore := helper.GetCosineSimilar(userVector, vector)
+			similarityMap[Id] = SimilarScore
 		}
 	}
 	similarities := []SongSimilarity{}
@@ -877,16 +872,13 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 			Similarity: Score,
 		})
 	}
+	log.Print(similarities)
 	sort.Slice(similarities, func(i, j int) bool {
 		return similarities[i].Similarity > similarities[j].Similarity
 	})
-
-	// Lấy top 5 gợi ý (có thể điều chỉnh)
 	topN := 7
 	SongRecommendId := []response.SongResponse{}
 	for i := 0; i < topN && i < len(similarities); i++ {
-		// fmt.Print(similarities[i].Similarity, " ", similarities[i].ID)
-		// fmt.Print(" ")
 		SongEntity, errorToGetSong := SongServe.SongRepo.GetSongById(similarities[i].ID)
 		if errorToGetSong != nil {
 			log.Print(errorToGetSong)
