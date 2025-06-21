@@ -105,6 +105,7 @@ func GetUserProfile(userId string, Feature []string) ([]float64, error) {
 			userProfile[index] += item * float64(count)
 		}
 	}
+	log.Print(userProfile)
 	norm := 0.0
 	for _, val := range userProfile {
 		norm += val * val

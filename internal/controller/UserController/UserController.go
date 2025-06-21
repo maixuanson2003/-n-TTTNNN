@@ -156,6 +156,7 @@ func (userController *UserController) SearchUser(write http.ResponseWriter, Requ
 	Address := QueryParam.Get("address")
 	Role := QueryParam.Get("role")
 	Gender := QueryParam.Get("gender")
+	
 	//Get response call func SearchUser
 	Resp, errs := userController.UserService.SearchUser(Name, age, Email, Address, Role, Gender)
 	if errs != nil {

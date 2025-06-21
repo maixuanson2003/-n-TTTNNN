@@ -888,7 +888,6 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 		SongRecommendId = append(SongRecommendId, SongResponse)
 	}
 	return SongRecommendId, nil
-
 }
 func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongResponse, error) {
 	type SongSimilarity struct {
