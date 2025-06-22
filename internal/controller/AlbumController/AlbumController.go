@@ -139,15 +139,12 @@ func (AlbumControll *AlbumController) GetAlbumByArtist(Write http.ResponseWriter
 		log.Print(ErrorToConvert)
 		http.Error(Write, "failed to convert", http.StatusBadRequest)
 		return
-
 	}
-
 	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetAlbumByArtist(ArtistId)
 	if ErrorToGetAlbum != nil {
 		log.Print(ErrorToGetAlbum)
 		http.Error(Write, "failed get album by  artist", http.StatusBadRequest)
 		return
-
 	}
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusAccepted)
