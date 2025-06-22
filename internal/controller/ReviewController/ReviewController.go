@@ -30,6 +30,7 @@ func (ReviewControll *ReviewController) RegisterRoute(r *mux.Router) {
 	middleware := ReviewControll.MiddleWare
 	r.HandleFunc("/reviewlist", ReviewControll.GetListReview).Methods("GET")
 	r.HandleFunc("/reviewlistinsong/{id}", ReviewControll.GetListReviewBySong).Methods("GET")
+	r.HandleFunc("/review/user", ReviewControll.GetListReviewForUser).Methods("GET")
 	r.HandleFunc("/createreview", middleware.Chain(ReviewControll.CreateReview, middleware.CheckToken(), middleware.VerifyRole([]string{"USER"}))).Methods("POST")
 	r.HandleFunc("/updatereview", middleware.Chain(ReviewControll.UpdateReview, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 	r.HandleFunc("/deletereview/{id}", middleware.Chain(ReviewControll.DeleteReview, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("DELETE")
@@ -111,6 +112,44 @@ func (reviewController *ReviewController) DeleteReview(w http.ResponseWriter, r 
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+func (reviewController *ReviewController) DeleteReviewForUser(w http.ResponseWriter, r *http.Request) {
+
+	reviewIdStr := r.URL.Query().Get("reviewid")
+	reviewId, err := strconv.Atoi(reviewIdStr)
+	if err != nil {
+		http.Error(w, "Invalid review ID", http.StatusBadRequest)
+		return
+	}
+	userId := r.URL.Query().Get("userid")
+	if userId == "" {
+		http.Error(w, "Unauthorized: missing user ID", http.StatusUnauthorized)
+		return
+	}
+	response, err := reviewController.ReviewServe.DeleteReviewByIdForUser(reviewId, userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+func (reviewController *ReviewController) GetListReviewForUser(w http.ResponseWriter, r *http.Request) {
+
+	userId := r.URL.Query().Get("userid")
+	if userId == "" {
+		http.Error(w, "Unauthorized: missing user ID", http.StatusUnauthorized)
+		return
+	}
+	response, err := reviewController.ReviewServe.GetListReviewForUser(userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)

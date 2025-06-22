@@ -1,6 +1,7 @@
 package reviewservice
 
 import (
+	"errors"
 	"log"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
@@ -171,4 +172,58 @@ func (ReviewServe *ReviewService) DeleteReviewById(ReviewId int) (MessageRespons
 		Status:  "Failed",
 	}, nil
 
+}
+func (ReviewServe *ReviewService) DeleteReviewByIdForUser(reviewId int, userId string) (MessageResponse, error) {
+	reviewRepo := ReviewServe.ReviewRepo
+	userRepo := ReviewServe.UserRepo
+
+	user, err := userRepo.FindById(userId)
+	if err != nil {
+		return MessageResponse{}, err
+	}
+
+	// Kiểm tra xem reviewId có thuộc user không
+	owned := false
+	for _, review := range user.Review {
+		if review.ID == reviewId {
+			owned = true
+			break
+		}
+	}
+
+	if !owned {
+		return MessageResponse{}, errors.New("review does not belong to this user")
+	}
+	err = reviewRepo.DeleteReview(reviewId)
+	if err != nil {
+		log.Print(err)
+		return MessageResponse{}, err
+	}
+	return MessageResponse{
+		Message: "Review deleted successfully",
+		Status:  "Success",
+	}, nil
+
+}
+func (ReviewServe *ReviewService) GetListReviewForUser(userId string) ([]response.ReviewResponse, error) {
+	UserRepo := ReviewServe.UserRepo
+	User, ErrorToGetSong := UserRepo.FindById(userId)
+	if ErrorToGetSong != nil {
+		log.Print(ErrorToGetSong)
+		return nil, ErrorToGetSong
+	}
+	ReviewArray := User.Review
+	ReviewResponse := []response.ReviewResponse{}
+	for _, ReviewItem := range ReviewArray {
+		if ReviewItem.Status == Status_Up {
+			User, ErrorToGetUser := UserRepo.FindById(ReviewItem.UserId)
+			if ErrorToGetUser != nil {
+				log.Print(ErrorToGetUser)
+				return nil, ErrorToGetUser
+			}
+			ReviewResponse = append(ReviewResponse, MapReviewEntityToReviewResponse(ReviewItem, User.Username))
+		}
+
+	}
+	return ReviewResponse, nil
 }
