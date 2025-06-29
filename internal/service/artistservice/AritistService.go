@@ -2,6 +2,8 @@ package artistservice
 
 import (
 	"log"
+	"mime/multipart"
+	"ten_module/internal/Config"
 	"ten_module/internal/DTO/request"
 	"ten_module/internal/DTO/response"
 	entity "ten_module/internal/Entity"
@@ -45,14 +47,16 @@ func MapArtistEntityToResponse(Artist entity.Artist, NameCountry string) respons
 		BirthDay:    Artist.BirthDay,
 		Description: Artist.Description,
 		Country:     NameCountry,
+		Image:       Artist.Image,
 	}
 }
-func MapArtistToEntity(Artist request.ArtistRequest) entity.Artist {
+func MapArtistToEntity(Artist request.ArtistRequest, Image string) entity.Artist {
 	return entity.Artist{
 		Name:        Artist.Name,
 		BirthDay:    Artist.BirthDay,
 		Description: Artist.Description,
 		CountryId:   Artist.CountryId,
+		Image:       Image,
 	}
 }
 func (ArtistServe *ArtistService) GetListArtist() ([]response.ArtistResponse, error) {
@@ -74,23 +78,38 @@ func (ArtistServe *ArtistService) GetListArtist() ([]response.ArtistResponse, er
 	}
 	return ArtistRes, nil
 }
-func (ArtistServe *ArtistService) CreateArtist(ArtistRequest request.ArtistRequest) (MessageResponse, error) {
+func (ArtistServe *ArtistService) CreateArtist(ArtistRequest request.ArtistRequest, File *multipart.FileHeader) (MessageResponse, error) {
 	ArtRepo := ArtistServe.ArtistRepo
-	Artist := MapArtistToEntity(ArtistRequest)
-	ErrorToCreateAritst := ArtRepo.CreateArtist(Artist)
-	if ErrorToCreateAritst != nil {
-		log.Print(ErrorToCreateAritst)
-		return MessageResponse{
-			Message: "Failed",
-			Status:  "Failed",
-		}, ErrorToCreateAritst
-	}
+	go func() {
+		errs := ArtistServe.processArtistBackground(*ArtRepo, ArtistRequest, File)
+		if errs != nil {
+			log.Print(errs)
+		}
+	}()
 	return MessageResponse{
 		Message: "Success",
 		Status:  "Success",
 	}, nil
 }
-func (ArtistServe *ArtistService) UpdateArtist(ArtistRequest request.ArtistRequest, artistId int) (MessageResponse, error) {
+func (ArtistServe *ArtistService) processArtistBackground(ArtRepo repository.ArtistRepository, ArtistRequest request.ArtistRequest, File *multipart.FileHeader) error {
+	imageResource, errs := Config.HandleUploadImage(File, ArtistRequest.Name)
+	if errs != nil {
+		return errs
+	}
+	Artist := MapArtistToEntity(ArtistRequest, imageResource)
+	ErrorToCreateAritst := ArtRepo.CreateArtist(Artist)
+	return ErrorToCreateAritst
+}
+func (ArtistServe *ArtistService) processArtistUpdate(ArtRepo repository.ArtistRepository, artist entity.Artist, File *multipart.FileHeader) error {
+	imageResource, errs := Config.HandleUploadImage(File, artist.Name)
+	if errs != nil {
+		return errs
+	}
+	artist.Image = imageResource
+	ErrorToCreateAritst := ArtRepo.UpdateAritst(artist, artist.ID)
+	return ErrorToCreateAritst
+}
+func (ArtistServe *ArtistService) UpdateArtist(ArtistRequest request.ArtistRequest, artistId int, File *multipart.FileHeader) (MessageResponse, error) {
 	ArtRepo := ArtistServe.ArtistRepo
 	Artist, err := ArtRepo.GetArtistById(artistId)
 	if err != nil {
@@ -109,6 +128,12 @@ func (ArtistServe *ArtistService) UpdateArtist(ArtistRequest request.ArtistReque
 			Status:  "Failed",
 		}, ErrorToCreateAritst
 	}
+	go func() {
+		errs := ArtistServe.processArtistUpdate(*ArtRepo, Artist, File)
+		if errs != nil {
+			log.Print(errs)
+		}
+	}()
 	return MessageResponse{
 		Message: "Success",
 		Status:  "Success",
@@ -224,7 +249,7 @@ func (ArtistServe *ArtistService) GetArtistById(artistId int) (map[string]interf
 
 	}
 	for _, AlbumItem := range AlbumList {
-		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem, ArtistServe.CountryRep, ArtistServe.SongRep ))
+		AlbumResponse = append(AlbumResponse, albumservice.AlbumEntityMapToAlbumResponse(AlbumItem, ArtistServe.CountryRep, ArtistServe.SongRep))
 	}
 	response := map[string]interface{}{
 		"artist": ArtistResponse,

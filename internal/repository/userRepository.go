@@ -34,7 +34,7 @@ type UserRepoInterface interface {
 func (instance *UserRepository) FindAll() ([]entity.User, error) {
 	Database := instance.DB
 	var User []entity.User
-	err := Database.Model(&entity.User{}).Find(&User).Error
+	err := Database.Model(&entity.User{}).Order("id DESC").Find(&User).Error
 	if err != nil {
 		return nil, err
 	}
@@ -168,4 +168,18 @@ func (instance *UserRepository) GetUserQuery(Name string, Age int, Email string,
 		return nil, err
 	}
 	return User, nil
+}
+func (instance *UserRepository) DeleteSongLike(userID string, songID int) error {
+	result := instance.DB.
+		Table("user_likes").
+		Where("user_id = ? AND song_id = ?", userID, songID).
+		Delete(nil)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("no like found for user_id=%s and song_id=%d", userID, songID)
+	}
+	return nil
 }

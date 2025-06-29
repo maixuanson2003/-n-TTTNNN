@@ -60,18 +60,15 @@ type MusicQuery struct {
 	Artist    string `json:"artist"`
 	Intent    string `json:"intent"`
 	Keywords  string `json:"keywords"`
-	country   string `json:"country"`
+	Country   string `json:"country"`
 	TimeRange string `json:"time_range"`
 	SortBy    string `json:"sort_by"`
 }
 
 func getSimplePrompt() string {
-	// Lấy dữ liệu
 	Crepo, _ := repository.CountryRepo.FindAll()
 	songtype, _ := repository.SongTypeRepo.FindAll()
 	Art, _ := repository.ArtistRepo.FindAll()
-
-	// Map các giá trị thành mảng chuỗi
 	var countryNames []string
 	for _, c := range Crepo {
 		countryNames = append(countryNames, fmt.Sprintf(`"%s"`, c.CountryName))
@@ -87,12 +84,9 @@ func getSimplePrompt() string {
 		artistNames = append(artistNames, fmt.Sprintf(`"%s"`, a.Name))
 	}
 
-	// Chuyển sang chuỗi JSON-like
 	countriesStr := strings.Join(countryNames, ", ")
 	songTypesStr := strings.Join(songTypes, ", ")
 	artistsStr := strings.Join(artistNames, ", ")
-
-	// Prompt với các gợi ý cụ thể
 	return fmt.Sprintf(`Bạn là trợ lý âm nhạc. Phân tích câu người dùng và trả về JSON:
 
 {
@@ -119,7 +113,7 @@ Quy tắc phân tích:
 
 3. Thể loại nhạc (genre):
 - So khớp các từ với danh sách thể loại (%s)
-- Nếu không khớp rõ ràng, nhưng ngữ cảnh như "lái xe", "tập gym", "ngủ", "làm việc", "thư giãn" thì suy luận genre phù hợp:
+- Nếu không khớp rõ ràng, nhưng ngữ cảnh như "buồn", "lái xe", "tập gym", "ngủ", "làm việc", "thư giãn","đám cưới","học tập" thì suy luận genre phù hợp:
   - "lái xe" → ["rock", "edm", "lofi"]
   - "tập gym" → ["edm", "hiphop", "remix"]
   - "thư giãn" → ["lofi", "acoustic", "jazz"]
@@ -158,16 +152,13 @@ func ExtractMusicInfo(userInput string) (*MusicQuery, error) {
 		return nil, err
 	}
 
-	// Clean JSON response - xử lý nhiều format khác nhau
 	cleanText := strings.TrimSpace(text)
 
-	// Loại bỏ markdown code blocks
 	cleanText = strings.TrimPrefix(cleanText, "```json")
 	cleanText = strings.TrimPrefix(cleanText, "```JSON")
 	cleanText = strings.TrimPrefix(cleanText, "```")
 	cleanText = strings.TrimSuffix(cleanText, "```")
 
-	// Loại bỏ text thừa trước và sau JSON
 	if startIdx := strings.Index(cleanText, "{"); startIdx != -1 {
 		cleanText = cleanText[startIdx:]
 	}

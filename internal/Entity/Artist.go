@@ -3,6 +3,7 @@ package entity
 type Artist struct {
 	ID          int
 	Name        string
+	Image       string
 	BirthDay    string
 	Description string
 	CountryId   int

@@ -39,9 +39,13 @@ func (AlbumRepo *AlbumRepository) FindAll() ([]entity.Album, error) {
 
 }
 func (AlbumRepo *AlbumRepository) GetAlbumById(Id int) (entity.Album, error) {
-	Database := AlbumRepo.DB
+	Database := AlbumRepo.DB.Session(&gorm.Session{NewDB: true}) // bắt buộc để tránh cache/preload
 	var Album entity.Album
-	err := Database.Model(&entity.Album{}).Preload("Song").Preload("Artist").Where("id=?", Id).First(&Album).Error
+	err := Database.Model(&entity.Album{}).
+		Preload("Song").
+		Preload("Artist").
+		Where("id=?", Id).
+		First(&Album).Error
 	if err != nil {
 		return entity.Album{}, err
 	}

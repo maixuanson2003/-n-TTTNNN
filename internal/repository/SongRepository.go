@@ -134,39 +134,45 @@ func (songRepository *SongRepository) FilterSong(ArtistId []int, TypeId []int) (
 	return Song, nil
 }
 func (songRepository *SongRepository) DeleteSongById(id int) error {
-	db := songRepository.DB
+	db := songRepository.DB.Session(&gorm.Session{NewDB: true}).Debug()
 
 	return db.Transaction(func(tx *gorm.DB) error {
-
-		if err := tx.Where("song_id = ?", id).Delete(&entity.ListenHistory{}).Error; err != nil {
+		// 1. Lấy thông tin (để xoá file sau commit nếu cần)
+		var song entity.Song
+		if err := tx.First(&song, id).Error; err != nil {
 			return err
 		}
 
+		// 2. Xoá các bảng pivot many‑to‑many
+		pivotSQL := []string{
+			"DELETE FROM song_song_types   WHERE song_id = ?",
+			"DELETE FROM song_artists      WHERE song_id = ?",
+			"DELETE FROM user_likes        WHERE song_id = ?",
+			"DELETE FROM play_list_songs   WHERE song_id = ?",
+			"DELETE FROM collection_songs  WHERE song_id = ?",
+		}
+		for _, q := range pivotSQL {
+			if err := tx.Exec(q, id).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Xoá bảng con has‑many
+		if err := tx.Where("song_id = ?", id).Delete(&entity.ListenHistory{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("song_id = ?", id).Delete(&entity.Review{}).Error; err != nil {
 			return err
 		}
 
-		if err := tx.Exec("DELETE FROM song_song_types WHERE song_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM song_artists WHERE song_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM user_likes WHERE song_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM play_list_songs WHERE song_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM collection_songs WHERE song_id = ?", id).Error; err != nil {
+		// 4. Xoá bài hát (hard delete)
+		if err := tx.Unscoped().Delete(&entity.Song{}, id).Error; err != nil {
 			return err
 		}
 
-		// Cuối cùng xóa bài hát
-		if err := tx.Delete(&entity.Song{}, id).Error; err != nil {
-			return err
-		}
-
+		log.Printf("✅ Đã xoá bài hát ID %d", id)
+		// (tuỳ chọn) Sau commit xoá file vật lý
+		// _ = Config.DeleteFile(song.SongResource)
 		return nil
 	})
 }
@@ -225,69 +231,62 @@ func parseCSV(input string) []string {
 
 // RecommendSongs xử lý genre, artist, keywords, time_range, sort_by
 func (repo *SongRepository) RecommendSongs(
-	genre string,
-	artist string,
-	keywords string,
-	timeRange string,
-	sortBy string,
+	genre, artist, country, keywords, timeRange, sortBy string,
 ) ([]entity.Song, error) {
+
 	var songs []entity.Song
 
 	db := repo.DB.Model(&entity.Song{}).
-		Select("songs.*, COUNT(listen_histories.id) as listen_count").
+		Select("songs.*, COUNT(listen_histories.id) AS listen_count").
 		Joins("LEFT JOIN listen_histories ON songs.id = listen_histories.song_id").
 		Group("songs.id").
 		Preload("SongType").
 		Preload("Artist").
-		Preload("Album")
+		Preload("Album").
+		Preload("Country")
 
-	// Filter by Genre (many-to-many)
 	if genre != "" {
-		genres := parseCSV(genre)
-		log.Print(genres)
-		if len(genres) > 0 {
+		if g := parseCSV(genre); len(g) > 0 {
 			db = db.
 				Joins("JOIN song_song_types ON song_song_types.song_id = songs.id").
 				Joins("JOIN song_types ON song_types.id = song_song_types.song_type_id").
-				Where("song_types.type IN ?", genres)
+				Where("song_types.type IN ?", g)
 		}
 	}
-
-	log.Print(artist)
 	if artist != "" {
-		artists := parseCSV(artist)
-		if len(artists) > 0 {
+		if a := parseCSV(artist); len(a) > 0 {
 			db = db.
 				Joins("JOIN song_artists ON song_artists.song_id = songs.id").
 				Joins("JOIN artists ON artists.id = song_artists.artist_id").
-				Where("artists.name IN ?", artists)
+				Where("artists.name IN ?", a)
 		}
 	}
-
-	// Filter by Keywords (title contains)
-	// if keywords != "" {
-	// 	db = db.Where("songs.name_song LIKE ?", "%"+keywords+"%")
-	// }
+	if country != "" {
+		if c := parseCSV(country); len(c) > 0 {
+			// tuỳ cấu trúc DB: nếu songs có country_id
+			db = db.
+				Joins("JOIN countries ON countries.id = songs.country_id").
+				Where("countries.country_name IN ?", c)
+		}
+	}
 
 	if timeRange != "" {
 		now := time.Now()
-		var fromTime time.Time
-
+		var from time.Time
 		switch strings.ToLower(timeRange) {
 		case "today":
-			fromTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			from = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 		case "week":
-			fromTime = now.AddDate(0, 0, -7)
+			from = now.AddDate(0, 0, -7)
 		case "month":
-			fromTime = now.AddDate(0, -1, 0)
+			from = now.AddDate(0, -1, 0)
 		case "year":
-			fromTime = now.AddDate(-1, 0, 0)
+			from = now.AddDate(-1, 0, 0)
 		}
-
-		db = db.Where("listen_histories.listen_day >= ?", fromTime)
+		db = db.Where("listen_histories.listen_day >= ?", from)
 	}
 
-	// Sort by
+	/* ---------- Sort ---------- */
 	switch strings.ToLower(sortBy) {
 	case "latest":
 		db = db.Order("songs.create_day DESC")
@@ -295,13 +294,11 @@ func (repo *SongRepository) RecommendSongs(
 		db = db.Order("songs.listen_amout DESC")
 	case "popular":
 		db = db.Order("songs.like_amount DESC")
+	case "top":
+		db = db.Order("listen_count DESC")
 	}
-
-	// Execute query
-	err := db.Find(&songs).Error
-	if err != nil {
+	if err := db.Find(&songs).Error; err != nil {
 		return nil, err
 	}
-
 	return songs, nil
 }

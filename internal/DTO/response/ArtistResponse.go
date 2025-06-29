@@ -6,4 +6,5 @@ type ArtistResponse struct {
 	BirthDay    string
 	Description string
 	Country     string
+	Image       string
 }

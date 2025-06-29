@@ -116,8 +116,10 @@ func (service *UserService) GetListUser() ([]response.UserResponse, error) {
 	}
 	var ListUserRes []response.UserResponse
 	for _, user := range ListUser {
-		Users := UserEntityMapToUserResponse(user)
-		ListUserRes = append(ListUserRes, Users)
+		if user.Role != "ADMIN" {
+			Users := UserEntityMapToUserResponse(user)
+			ListUserRes = append(ListUserRes, Users)
+		}
 	}
 	return ListUserRes, nil
 }

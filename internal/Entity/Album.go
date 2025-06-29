@@ -5,6 +5,7 @@ import "time"
 type Album struct {
 	ID          int
 	NameAlbum   string
+	Image       string
 	Description string
 	ReleaseDay  time.Time
 	ArtistOwner string

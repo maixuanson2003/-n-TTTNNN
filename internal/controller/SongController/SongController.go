@@ -1,7 +1,9 @@
 package songcontroller
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +15,7 @@ import (
 	"ten_module/internal/DTO/request"
 	openai "ten_module/internal/Helper/openAi"
 	"ten_module/internal/service/songservice"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
@@ -34,11 +37,10 @@ func InitSongController() {
 func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	middleware := Controller.middlware
 	r.HandleFunc("/song/create", middleware.Chain(Controller.CreateNewSong, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
-	r.HandleFunc("/song/{id}", Controller.DownLoadSong).Methods("GET")
+	r.HandleFunc("/download/song", Controller.DownloadHandler).Methods("GET")
 	r.HandleFunc("/getsong/{id}", Controller.GetSongById).Methods("GET")
 	r.HandleFunc("/updatesong/{id}", middleware.Chain(Controller.UpdateSong, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
 	r.HandleFunc("/Like", Controller.UserLikeSong).Methods("POST")
-	r.HandleFunc("/foruser/{id}", Controller.GetSongForUser).Methods("GET")
 	r.HandleFunc("/geturl", Controller.GetAllUrlSong).Methods("GET")
 	r.HandleFunc("/getsongall", Controller.GetAllSong).Methods("GET")
 	r.HandleFunc("/recommend", Controller.GetSongForUserRecommend).Methods("GET")
@@ -46,15 +48,55 @@ func (Controller *SongController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/filtersong", Controller.FilterSong).Methods("GET")
 	r.HandleFunc("/delete/song", middleware.Chain(Controller.DeleteSongById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/topweek/song", Controller.GetTopSongsThisWeek).Methods("GET")
-	r.HandleFunc("/update/song/album", Controller.UpdateSongAlbum).Methods("POST")
+	// r.HandleFunc("/update/song/album", Controller.UpdateSongAlbum).Methods("POST")
 	r.HandleFunc("/chatbot/song", Controller.ChatMusicHandler).Methods("POST")
 	r.HandleFunc("/song/week/chart", Controller.GetWeeklyChartDataPerDay).Methods("GET")
 	r.HandleFunc("/compe/song/top", Controller.GetTopSongCompe).Methods("GET")
 	r.HandleFunc("/getrecommed/song", Controller.GetSimilarSongsRecommend).Methods("GET")
+	r.HandleFunc("/get/like/{id}", Controller.GetSongLikeByUser).Methods("GET")
+	r.HandleFunc("/dishlike", Controller.UserDishLikeSong).Methods("POST")
+	r.HandleFunc("/list/song", Controller.GetSongList).Methods("GET")
 }
 
 var validate = validator.New()
 
+func (Controller *SongController) DownloadHandler(w http.ResponseWriter, r *http.Request) {
+	origin := r.URL.Query().Get("url")
+	if origin == "" {
+		http.Error(w, "missing url query parameter", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, origin, nil)
+	if err != nil {
+		http.Error(w, "bad origin URL: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, "cannot reach origin: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "origin returned "+resp.Status, http.StatusBadGateway)
+		return
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
+		w.Header().Set("Content-Disposition", cd)
+	} else {
+		w.Header().Set("Content-Disposition", "attachment")
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, resp.Body)
+}
 func (Controller *SongController) GetTopSongCompe(w http.ResponseWriter, r *http.Request) {
 	ranges := r.URL.Query().Get("range")
 	log.Print(ranges)
@@ -117,59 +159,60 @@ func (Controller *SongController) ChatMusicHandler(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(song)
 }
-func (Controller *SongController) UpdateSongAlbum(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(32 << 20)
-	if err != nil {
-		http.Error(w, "Không thể đọc multipart form", http.StatusBadRequest)
-		return
-	}
-	albumIdStr := r.URL.Query().Get("albumid")
-	if albumIdStr == "" {
-		http.Error(w, "albumId là bắt buộc", http.StatusBadRequest)
-		return
-	}
-	var albumId int
-	fmt.Sscanf(albumIdStr, "%d", &albumId)
-	songsJson := r.FormValue("songs")
-	if songsJson == "" {
-		log.Print("looi")
-		http.Error(w, "Thiếu thông tin bài hát (songs)", http.StatusBadRequest)
-		return
-	}
 
-	var songRequests []request.SongRequest
-	err = json.Unmarshal([]byte(songsJson), &songRequests)
-	if err != nil {
-		log.Print(err)
-		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
-		return
-	}
-	SongFile := r.MultipartForm.File["file"]
-	if len(SongFile) != len(songRequests) {
-		log.Print("do dai ko khop")
-		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
-		return
-	}
-	songFiles := []request.SongFile{}
+// func (Controller *SongController) UpdateSongAlbum(w http.ResponseWriter, r *http.Request) {
+// 	err := r.ParseMultipartForm(32 << 20)
+// 	if err != nil {
+// 		http.Error(w, "Không thể đọc multipart form", http.StatusBadRequest)
+// 		return
+// 	}
+// 	albumIdStr := r.URL.Query().Get("albumid")
+// 	if albumIdStr == "" {
+// 		http.Error(w, "albumId là bắt buộc", http.StatusBadRequest)
+// 		return
+// 	}
+// 	var albumId int
+// 	fmt.Sscanf(albumIdStr, "%d", &albumId)
+// 	songsJson := r.FormValue("songs")
+// 	if songsJson == "" {
+// 		log.Print("looi")
+// 		http.Error(w, "Thiếu thông tin bài hát (songs)", http.StatusBadRequest)
+// 		return
+// 	}
 
-	for i := 0; i < len(SongFile); i++ {
-		file, err := SongFile[i].Open()
-		if err != nil {
-			log.Print(err)
-			http.Error(w, "Failed to open file", http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
-		songFiles = append(songFiles, request.SongFile{File: file})
-	}
+// 	var songRequests []request.SongRequest
+// 	err = json.Unmarshal([]byte(songsJson), &songRequests)
+// 	if err != nil {
+// 		log.Print(err)
+// 		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
+// 		return
+// 	}
+// 	SongFile := r.MultipartForm.File["file"]
+// 	if len(SongFile) != len(songRequests) {
+// 		log.Print("do dai ko khop")
+// 		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
+// 		return
+// 	}
+// 	songFiles := []request.SongFile{}
 
-	// Gọi service để xử lý
-	Controller.songService.UpdateSongAlbum(&albumId, songRequests, songFiles)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Đang cập nhật danh sách bài hát cho album...",
-	})
-}
+// 	for i := 0; i < len(SongFile); i++ {
+// 		file, err := SongFile[i].Open()
+// 		if err != nil {
+// 			log.Print(err)
+// 			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+// 			return
+// 		}
+// 		defer file.Close()
+// 		songFiles = append(songFiles, request.SongFile{File: file})
+// 	}
+
+// 	// Gọi service để xử lý
+// 	Controller.songService.UpdateSongAlbum(&albumId, songRequests, songFiles)
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(map[string]string{
+// 		"message": "Đang cập nhật danh sách bài hát cho album...",
+// 	})
+// }
 
 func (Controller *SongController) GetTopSongsThisWeek(w http.ResponseWriter, r *http.Request) {
 	topSongs := Controller.songService.GetBookTopRange("week")
@@ -208,9 +251,9 @@ func (Controller *SongController) CreateNewSong(Write http.ResponseWriter, Req *
 		return
 	}
 	fmt.Println(SongRequest)
-	Files, _, errorToGetFile := Req.FormFile("file")
+	_, Header, errorToGetFile := Req.FormFile("file")
 	SongFile := request.SongFile{
-		File: Files,
+		File: Header,
 	}
 	if errorToGetFile != nil {
 
@@ -251,26 +294,30 @@ func (Controller *SongController) UpdateSong(Write http.ResponseWriter, Req *htt
 		return
 	}
 	var SongFile request.SongFile
-	file, _, err := Req.FormFile("file")
-	if err != nil {
-		// Không có file gửi lên => đặt file là nil
-		if strings.Contains(err.Error(), "no such file") {
-			SongFile.File = nil
-		} else {
-			// Có lỗi khi lấy file
-			log.Print(err)
-			http.Error(Write, "failed to get file", http.StatusBadRequest)
-			return
-		}
-	} else {
-		SongFile.File = file
+	_, fileHeader, fileErr := Req.FormFile("file")
+	SongFile.File = fileHeader
+	if fileErr != nil && !errors.Is(fileErr, http.ErrMissingFile) {
+		log.Print(fileErr)
+		http.Error(Write, "failed to get file", http.StatusBadRequest)
+		return
 	}
-
 	resp, errToUpdate := Controller.songService.UpdateSong(SongRequest, SongId, SongFile)
 	if errToUpdate != nil {
 		log.Print(errToUpdate)
-
 		http.Error(Write, "failed to update", http.StatusBadRequest)
+		return
+	}
+	Write.Header().Set("Content-Type", "application/json")
+	Write.WriteHeader(http.StatusOK)
+	json.NewEncoder(Write).Encode(resp)
+
+}
+func (Controller *SongController) GetSongList(Write http.ResponseWriter, Req *http.Request) {
+
+	resp, errorToGetSong := Controller.songService.GetListSong()
+	if errorToGetSong != nil {
+		http.Error(Write, "failed to get Song", http.StatusBadRequest)
+		log.Print(errorToGetSong)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")
@@ -327,6 +374,24 @@ func (Controller *SongController) DownLoadSong(Write http.ResponseWriter, Req *h
 	}
 
 }
+func (c *SongController) GetSongLikeByUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["id"] // {userId} trong route
+	if userID == "" {    // không tìm thấy hoặc rỗng
+		http.Error(w, "missing userId in path", http.StatusBadRequest)
+		return
+	}
+
+	songs, err := c.songService.GetSongByUserId(userID)
+	if err != nil {
+		http.Error(w, "failed to get songs for user", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(songs)
+}
 func (Controller *SongController) UserLikeSong(Write http.ResponseWriter, Req *http.Request) {
 	UserId := Req.URL.Query().Get("userid")
 	SongId := Req.URL.Query().Get("songid")
@@ -348,17 +413,26 @@ func (Controller *SongController) UserLikeSong(Write http.ResponseWriter, Req *h
 	json.NewEncoder(Write).Encode(resp)
 
 }
-func (Controller *SongController) GetSongForUser(Write http.ResponseWriter, Req *http.Request) {
-	url := Req.URL.Path
-	UserId := strings.Split(url, "/")[3]
-	Resp, ErrorToGetSong := Controller.songService.GetListSongForUser(UserId)
-	if ErrorToGetSong != nil {
-		http.Error(Write, "failed to get song", http.StatusBadRequest)
+func (Controller *SongController) UserDishLikeSong(Write http.ResponseWriter, Req *http.Request) {
+	UserId := Req.URL.Query().Get("userid")
+	SongId := Req.URL.Query().Get("songid")
+	fmt.Print("sss")
+	SongIdConvert, ErrorToConvertString := strconv.Atoi(SongId)
+	if ErrorToConvertString != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToConvertString)
+		return
+	}
+	resp, ErrorToLike := Controller.songService.UserDislikeSong(SongIdConvert, UserId)
+	if ErrorToLike != nil {
+		http.Error(Write, "failed to Convert", http.StatusBadRequest)
+		log.Print(ErrorToLike)
 		return
 	}
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusOK)
-	json.NewEncoder(Write).Encode(Resp)
+	json.NewEncoder(Write).Encode(resp)
+
 }
 func (Controller *SongController) GetAllUrlSong(Write http.ResponseWriter, Req *http.Request) {
 	FolderPath := "C:\\Users\\DPC\\Desktop\\MusicMp4\\internal\\music"
@@ -380,13 +454,8 @@ func (Controller *SongController) GetAllUrlSong(Write http.ResponseWriter, Req *
 
 }
 func (Controller *SongController) GetAllSong(Write http.ResponseWriter, Req *http.Request) {
-	page := Req.URL.Query().Get("page")
-	finalPage, errorToConvert := strconv.Atoi(page)
-	if errorToConvert != nil {
-		http.Error(Write, "faile to convert", http.StatusBadRequest)
-		return
-	}
-	SongResponse, errorToGetListSong := Controller.songService.GetAllSong(finalPage)
+
+	SongResponse, errorToGetListSong := Controller.songService.GetAllSong()
 	if errorToGetListSong != nil {
 		http.Error(Write, "write file false", http.StatusBadRequest)
 		return
@@ -398,7 +467,8 @@ func (Controller *SongController) GetAllSong(Write http.ResponseWriter, Req *htt
 }
 func (Controller *SongController) GetSongForUserRecommend(Write http.ResponseWriter, Req *http.Request) {
 	UserId := Req.URL.Query().Get("userid")
-	Resp, ErrorToGetSong := Controller.songService.GetSongForUser(UserId)
+	// Resp, ErrorToGetSong := Controller.songService.GetSongForUser(UserId)
+	Resp, ErrorToGetSong := Controller.songService.GetSongForUserV2(UserId, 7, 7)
 	if ErrorToGetSong != nil {
 		http.Error(Write, "faile", http.StatusBadRequest)
 		return

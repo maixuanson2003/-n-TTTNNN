@@ -105,17 +105,21 @@ func GetUserProfile(userId string, Feature []string) ([]float64, error) {
 			userProfile[index] += item * float64(count)
 		}
 	}
+	log.Println("User profile vector (trước khi chuẩn hóa):")
+	for i, val := range userProfile {
+		log.Printf("  %s: %.4f\n", Feature[i], val)
+	}
 	log.Print(userProfile)
-	norm := 0.0
-	for _, val := range userProfile {
-		norm += val * val
-	}
-	norm = math.Sqrt(norm)
-	if norm > 0 {
-		for i := range userProfile {
-			userProfile[i] /= norm
-		}
-	}
+	// norm := 0.0
+	// for _, val := range userProfile {
+	// 	norm += val * val
+	// }
+	// norm = math.Sqrt(norm)
+	// if norm > 0 {
+	// 	for i := range userProfile {
+	// 		userProfile[i] /= norm
+	// 	}
+	// }
 	return userProfile, nil
 
 }

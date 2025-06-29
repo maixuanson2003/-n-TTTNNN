@@ -30,7 +30,7 @@ func InitCollectionRepostiory() {
 func (CollectionRepo *CollectionRepostiory) FindAll() ([]entity.Collection, error) {
 	Database := ArtistRepo.DB
 	var Collection []entity.Collection
-	err := Database.Model(&entity.Collection{}).Find(&Collection).Error
+	err := Database.Model(&entity.Collection{}).Order("create_at DESC").Find(&Collection).Error
 	if err != nil {
 		return nil, err
 	}

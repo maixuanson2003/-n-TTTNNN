@@ -52,7 +52,7 @@ func (userController *UserController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/getuser/{id}", userController.GetUserById).Methods("GET")
 	r.HandleFunc("/deleteuser/{id}", userController.DeleteUserById).Methods("DELETE")
 	r.HandleFunc("/admin/users/export", middleware.Chain(userController.ExportUsersExcel, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("GET")
-	r.HandleFunc("/change/password", middleware.Chain(userController.ChangePassword, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("POST")
+	r.HandleFunc("/change/password", middleware.Chain(userController.ChangePassword, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN", "USER"}))).Methods("POST")
 	r.HandleFunc("/reset/password", userController.ResetPassword).Methods("POST")
 }
 func (userController *UserController) UserRegister(write http.ResponseWriter, Request *http.Request) {

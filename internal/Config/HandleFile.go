@@ -3,7 +3,9 @@ package Config
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 
 	"time"
@@ -15,28 +17,48 @@ import (
 var url = "http://res.cloudinary.com/dx6b8y6la/video/upload/v1739588778/file-music/file-test.mp4"
 
 func HandleUpLoadFile(input interface{}, publicId string) (string, error) {
-	ctx, cancle := context.WithTimeout(context.Background(), 60*time.Minute)
-	Env := GetEnvConfig()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
+	defer cancel()
 
-	defer cancle()
-	cld, errorToUpLoadFile := cloudinary.NewFromParams(Env.GetCloudName(), Env.GetCloudApiKey(), Env.GetCloudApiSecret())
-	if errorToUpLoadFile != nil {
-		fmt.Print(errorToUpLoadFile)
-		return "", errorToUpLoadFile
-	}
-	UploadParam, err := cld.Upload.Upload(ctx, input, uploader.UploadParams{
-		Folder:       Env.GetCloudFolder(),
-		UploadPreset: Env.GetCloudUpLoadPreset(),
-		PublicID:     publicId,
-	})
-	fmt.Print(UploadParam)
+	env := GetEnvConfig()
+
+	cld, err := cloudinary.NewFromParams(env.GetCloudName(), env.GetCloudApiKey(), env.GetCloudApiSecret())
 	if err != nil {
 		fmt.Print(err)
 		return "", err
 	}
-	fmt.Println("Upload thành công:", UploadParam.SecureURL)
 
-	return UploadParam.SecureURL, nil
+	var reader io.Reader
+
+	switch v := input.(type) {
+	case *multipart.FileHeader:
+		file, err := v.Open()
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+		reader = file
+	case multipart.File:
+		reader = v
+	case io.Reader:
+		reader = v
+	default:
+		return "", fmt.Errorf("unsupported input type: %T", input)
+	}
+
+	uploadParam, err := cld.Upload.Upload(ctx, reader, uploader.UploadParams{
+		ResourceType: "raw",
+		Folder:       env.GetCloudFolder(),
+		PublicID:     publicId,
+		Format:       "mp3",
+	})
+	if err != nil {
+		fmt.Print(err)
+		return "", err
+	}
+
+	fmt.Println("Upload thành công:", uploadParam.SecureURL)
+	return uploadParam.SecureURL, nil
 }
 func HandleDownLoadFile(publicId string, types string) (*http.Response, error) {
 	url := ""
@@ -56,4 +78,47 @@ func HandleDownLoadFile(publicId string, types string) (*http.Response, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+func HandleUploadImage(input interface{}, publicId string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	env := GetEnvConfig()
+
+	cld, err := cloudinary.NewFromParams(env.GetCloudName(), env.GetCloudApiKey(), env.GetCloudApiSecret())
+	if err != nil {
+		fmt.Print(err)
+		return "", err
+	}
+
+	var reader io.Reader
+
+	switch v := input.(type) {
+	case *multipart.FileHeader:
+		file, err := v.Open()
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+		reader = file
+	case multipart.File:
+		reader = v
+	case io.Reader:
+		reader = v
+	default:
+		return "", fmt.Errorf("unsupported input type: %T", input)
+	}
+
+	uploadParam, err := cld.Upload.Upload(ctx, reader, uploader.UploadParams{
+		ResourceType: "image",
+		Folder:       env.GetCloudFolder(),
+		PublicID:     publicId,
+	})
+	if err != nil {
+		fmt.Print(err)
+		return "", err
+	}
+
+	fmt.Println("Upload ảnh thành công:", uploadParam.SecureURL)
+	return uploadParam.SecureURL, nil
 }

@@ -9,6 +9,7 @@ type AlbumResponse struct {
 	ReleaseDay  time.Time
 	ArtistOwner string
 	CreateDay   time.Time
+	Image       string
 	UpdateDay   time.Time
 	Song        []SongResponseAlbum
 	Artist      []ArtistResponse

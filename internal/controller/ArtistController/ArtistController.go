@@ -70,8 +70,21 @@ func (ArtController *ArtistController) GetArtistById(write http.ResponseWriter, 
 }
 func (ArtController *ArtistController) CreateArtist(write http.ResponseWriter, Request *http.Request) {
 	var artistRequest request.ArtistRequest
-	json.NewDecoder(Request.Body).Decode(&artistRequest)
-	Resp, ErrorToCreateArtist := ArtController.ArtistService.CreateArtist(artistRequest)
+	AritstReq := Request.FormValue("artistrequest")
+	ErrorToConvert := json.Unmarshal([]byte(AritstReq), &artistRequest)
+	if ErrorToConvert != nil {
+		log.Print(ErrorToConvert)
+		http.Error(write, "Failed To convert file", http.StatusBadRequest)
+		return
+	}
+
+	_, Header, errorToGetFile := Request.FormFile("image")
+	if errorToGetFile != nil {
+		log.Print(errorToGetFile)
+		http.Error(write, "Failed To get file", http.StatusBadRequest)
+		return
+	}
+	Resp, ErrorToCreateArtist := ArtController.ArtistService.CreateArtist(artistRequest, Header)
 	if ErrorToCreateArtist != nil {
 		log.Print(ErrorToCreateArtist)
 		http.Error(write, "Failed To CreateSong", http.StatusBadRequest)
@@ -150,13 +163,25 @@ func (ArtController *ArtistController) UpdateArtist(write http.ResponseWriter, R
 	url := Request.URL.Path
 	AritstIdParam := strings.Split(url, "/")[3]
 	var artistRequest request.ArtistRequest
-	json.NewDecoder(Request.Body).Decode(&artistRequest)
+	AritstReq := Request.FormValue("artistrequest")
+	ErrorToConvert := json.Unmarshal([]byte(AritstReq), &artistRequest)
+	if ErrorToConvert != nil {
+		log.Print(ErrorToConvert)
+		http.Error(write, "Failed To convert file", http.StatusBadRequest)
+		return
+	}
 	ArtistId, errorToConvert := strconv.Atoi(AritstIdParam)
 	if errorToConvert != nil {
 		http.Error(write, "faile to convert", http.StatusBadRequest)
 		return
 	}
-	resp, err := ArtController.ArtistService.UpdateArtist(artistRequest, ArtistId)
+	_, Header, errorToGetFile := Request.FormFile("image")
+	if errorToGetFile != nil {
+		log.Print(errorToGetFile)
+		http.Error(write, "Failed To get file", http.StatusBadRequest)
+		return
+	}
+	resp, err := ArtController.ArtistService.UpdateArtist(artistRequest, ArtistId, Header)
 	if err != nil {
 
 		http.Error(write, "faile to delete", http.StatusBadRequest)

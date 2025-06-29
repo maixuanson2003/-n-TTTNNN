@@ -39,7 +39,47 @@ func (AlbumControll *AlbumController) RegisterRoute(r *mux.Router) {
 	r.HandleFunc("/getalbum/artist", AlbumControll.GetAlbumByArtist).Methods("GET")
 	r.HandleFunc("/deletealbum/{id}", AlbumControll.MiddleWare.Chain(AlbumControll.DeleteAlbumById, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("DELETE")
 	r.HandleFunc("/updatealbum/{id}", AlbumControll.MiddleWare.Chain(AlbumControll.UpdateAlbum, middleware.CheckToken(), middleware.VerifyRole([]string{"ADMIN"}))).Methods("PUT")
+	r.HandleFunc("/update/song/album", AlbumControll.UpdateSongAlbum).Methods("POST")
+}
+func (Controller *AlbumController) UpdateSongAlbum(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, "Không thể đọc multipart form", http.StatusBadRequest)
+		return
+	}
+	albumIdStr := r.URL.Query().Get("albumid")
+	if albumIdStr == "" {
+		http.Error(w, "albumId là bắt buộc", http.StatusBadRequest)
+		return
+	}
+	var albumId int
+	fmt.Sscanf(albumIdStr, "%d", &albumId)
+	songsJson := r.FormValue("songs")
+	if songsJson == "" {
+		http.Error(w, "Thiếu thông tin bài hát (songs)", http.StatusBadRequest)
+		return
+	}
 
+	var songRequests []request.SongRequestUpdate
+	if err := json.Unmarshal([]byte(songsJson), &songRequests); err != nil {
+		log.Print(err)
+		http.Error(w, "Không thể parse JSON bài hát", http.StatusBadRequest)
+		return
+	}
+	log.Print(songRequests)
+	SongFiles := r.MultipartForm.File["file"]
+	if len(SongFiles) != len(songRequests) {
+		http.Error(w, "Số lượng file và bài hát không khớp", http.StatusBadRequest)
+		return
+	}
+	songFileList := make([]request.SongFile, len(SongFiles))
+	for i, f := range SongFiles {
+		songFileList[i] = request.SongFile{File: f}
+	}
+	go Controller.AlbumServe.UpdateSongAlbum(&albumId, songRequests, songFileList)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Đang cập nhật danh sách bài hát cho album...",
+	})
 }
 func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Request *http.Request) {
 	var AlbumReq request.AlbumRequest
@@ -47,6 +87,12 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 	AlbumRequest := Request.FormValue("album_request")
 	ErrorToConvert := json.Unmarshal([]byte(AlbumRequest), &AlbumReq)
 	errorsToValidate := validate.Struct(AlbumReq)
+	_, Header, errorToGetFile := Request.FormFile("image")
+	if errorToGetFile != nil {
+		log.Print(errorToGetFile)
+		http.Error(Write, "failed to get file", http.StatusBadRequest)
+		return
+	}
 	if errorsToValidate != nil {
 		validationErrors := errorsToValidate.(validator.ValidationErrors)
 		var errorMsg string
@@ -89,7 +135,7 @@ func (AlbumControll *AlbumController) CreateAlbum(Write http.ResponseWriter, Req
 			File:     file,
 		})
 	}
-	Resp, ErrorToCreateAlbum := AlbumControll.AlbumServe.CreateAlbum(AlbumReq, SongFileReq)
+	Resp, ErrorToCreateAlbum := AlbumControll.AlbumServe.CreateAlbum(AlbumReq, SongFileReq, Header)
 	if ErrorToCreateAlbum != nil {
 		log.Print(ErrorToCreateAlbum)
 		http.Error(Write, "ErrorToCreateAlbum", http.StatusBadRequest)
@@ -120,7 +166,6 @@ func (AlbumControll *AlbumController) GetAlbumById(Write http.ResponseWriter, Re
 		log.Print(ErrorToConvertToNumber)
 		http.Error(Write, "failed to convert to int", http.StatusBadRequest)
 		return
-
 	}
 	Resp, ErrorToGetAlbum := AlbumControll.AlbumServe.GetAlbumById(AlbumId)
 	if ErrorToGetAlbum != nil {
@@ -149,7 +194,6 @@ func (AlbumControll *AlbumController) GetAlbumByArtist(Write http.ResponseWriter
 	Write.Header().Set("Content-Type", "application/json")
 	Write.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(Write).Encode(Resp)
-
 }
 func (AlbumControll *AlbumController) DeleteAlbumById(Write http.ResponseWriter, Request *http.Request) {
 	url := Request.URL.Path
@@ -178,13 +222,20 @@ func (AlbumControll *AlbumController) UpdateAlbum(Write http.ResponseWriter, Req
 		return
 	}
 	var AlbumUpdate request.AlbumUpdate
-	errs := json.NewDecoder(Request.Body).Decode(&AlbumUpdate)
+	AlbumRequest := Request.FormValue("albumrequest")
+	errs := json.Unmarshal([]byte(AlbumRequest), &AlbumUpdate)
 	if errs != nil {
-		log.Print(errs)
+		log.Print("sss")
 		http.Error(Write, "faile to convert", http.StatusBadRequest)
 		return
 	}
-	resp, errorsToUpdate := AlbumControll.AlbumServe.UpdateAlbum(AlbumUpdate, AlbumId)
+	_, Header, errorToGetFile := Request.FormFile("image")
+	if errorToGetFile != nil {
+		log.Print(errorToGetFile)
+		http.Error(Write, "failed to get file", http.StatusBadRequest)
+		return
+	}
+	resp, errorsToUpdate := AlbumControll.AlbumServe.UpdateAlbum(AlbumUpdate, AlbumId, Header)
 	if errorsToUpdate != nil {
 		http.Error(Write, "update failed", http.StatusBadRequest)
 		return

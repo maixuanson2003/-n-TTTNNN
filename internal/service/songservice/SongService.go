@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+
 	"net/http"
 	"sort"
 	"ten_module/internal/Config"
@@ -73,7 +73,7 @@ func SongReqMapToSongEntity(SongReq request.SongRequest, resource string, ListSo
 		UpdateDay:    time.Now(),
 		Point:        SongReq.Point,
 		LikeAmount:   0,
-		Status:       "Release",
+		Status:       SongReq.Status,
 		CountryId:    SongReq.CountryId,
 		ListenAmout:  0,
 		SongResource: resource,
@@ -180,7 +180,7 @@ type SongChartData struct {
 
 func (songServe *SongService) GetDataFromPromb(query *gemini.MusicQuery) []response.SongResponse {
 	log.Print(query)
-	song, errs := songServe.SongRepo.RecommendSongs(query.Genre, query.Artist, query.Keywords, query.TimeRange, query.SortBy)
+	song, errs := songServe.SongRepo.RecommendSongs(query.Genre, query.Artist, query.Country, query.Keywords, query.TimeRange, query.SortBy)
 	if errs != nil {
 		return nil
 	}
@@ -331,80 +331,6 @@ func (songServe *SongService) CreateNewSong(SongReq request.SongRequest, SongFil
 	}, nil
 
 }
-func (songServe *SongService) UpdateSongAlbum(AlbumId *int, songReqs []request.SongRequest, songFiles []request.SongFile) {
-	album, err := songServe.AlbumRepo.GetAlbumById(*AlbumId)
-	if err != nil {
-		log.Print(album)
-		return
-	}
-
-	err = songServe.SongRepo.DeleteSongsByAlbumId(*AlbumId)
-	if err != nil {
-		log.Printf("Lỗi khi xóa bài hát cũ: %v", err)
-		return
-	}
-
-	album.Song = []entity.Song{}
-
-	errs := songServe.AlbumRepo.UpdateAlbum(album, *AlbumId)
-	if errs != nil {
-		log.Print(errs)
-		return
-	}
-	for index, songReq := range songReqs {
-		go func() {
-			songEntity := entity.Song{}
-
-			songEntity.NameSong = songReq.NameSong
-			songEntity.Description = songReq.Description
-			songEntity.Point = songReq.Point
-			songEntity.CountryId = songReq.CountryId
-			songEntity.ReleaseDay = songReq.ReleaseDay
-			songEntity.CreateDay = time.Now()
-			songEntity.UpdateDay = time.Now()
-			songEntity.AlbumId = AlbumId
-			newSongTypes := []entity.SongType{}
-			for _, typeId := range songReq.SongType {
-				songType, err := songServe.SongTypeRepo.GetSongTypeById(typeId)
-				if err != nil {
-					log.Printf("Không tìm thấy thể loại ID %d: %v", typeId, err)
-					continue
-				}
-				newSongTypes = append(newSongTypes, songType)
-			}
-			songEntity.SongType = newSongTypes
-
-			newArtists := []entity.Artist{}
-			for _, artistId := range songReq.Artist {
-				artist, err := songServe.ArtistRepo.GetArtistById(artistId)
-				if err != nil {
-					log.Printf("Không tìm thấy nghệ sĩ ID %d: %v", artistId, err)
-					continue
-				}
-				newArtists = append(newArtists, artist)
-			}
-			songEntity.Artist = newArtists
-			if index < len(songFiles) && songFiles[index].File != nil {
-				resourceUrl, err := Config.HandleUpLoadFile(songFiles[index].File, songReq.NameSong)
-				if err != nil {
-					log.Printf("Upload bài hát thất bại: %v", err)
-				} else {
-					songEntity.SongResource = resourceUrl
-				}
-			}
-
-			errToCreate := songServe.SongRepo.CreateSong(songEntity)
-			if errToCreate != nil {
-				log.Print(errToCreate)
-				log.Printf("update song that bai")
-			} else {
-				log.Printf("update song thành công")
-			}
-
-		}()
-	}
-}
-
 func (songServe *SongService) UpLoadSongBackground(SongReq request.SongRequest, SongFile request.SongFile, ListSongType []entity.SongType, ListArtist []entity.Artist) error {
 	errorRes := errors.New("check")
 	resourceSong, err := Config.HandleUpLoadFile(SongFile.File, SongReq.NameSong)
@@ -467,16 +393,18 @@ func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int, So
 	Song.Artist = ListArtist
 	Song.NameSong = SongReq.NameSong
 	Song.Description = SongReq.Description
+	Song.Status = SongReq.Status
 	Song.Point = SongReq.Point
 	Song.CountryId = SongReq.CountryId
 	go func() {
 		if SongFile.File != nil {
-			errs := songServe.UpLoadSongBackgroundUpdate(Song, SongFile)
-			if errs != nil {
-				log.Print("some thing wrong")
+			if err := songServe.UpLoadSongBackgroundUpdate(Song, SongFile); err != nil {
+				log.Print("Có lỗi khi upload:", err)
+			} else {
+				log.Print("Upload thành công")
 			}
-			log.Print("upload success")
-
+		} else {
+			log.Print("Không có file (nil hoặc typed-nil)")
 		}
 
 	}()
@@ -493,9 +421,9 @@ func (songServe *SongService) UpdateSong(SongReq request.SongRequest, Id int, So
 	}, err
 
 }
-func (songServe *SongService) GetAllSong(Offset int) ([]map[string]interface{}, error) {
+func (songServe *SongService) GetListSong() ([]map[string]interface{}, error) {
 	SongRepos := songServe.SongRepo
-	ListSong, ErrorToGetListSong := SongRepos.Paginate(Offset)
+	ListSong, ErrorToGetListSong := SongRepos.FindAll()
 	if ErrorToGetListSong != nil {
 		log.Print(ErrorToGetListSong)
 		return nil, ErrorToGetListSong
@@ -521,6 +449,53 @@ func (songServe *SongService) GetAllSong(Offset int) ([]map[string]interface{}, 
 
 	}
 	return ListSongResponse, nil
+}
+func (songServe *SongService) GetAllSong() ([]map[string]interface{}, error) {
+	SongRepos := songServe.SongRepo
+	ListSong, ErrorToGetListSong := SongRepos.FindAll()
+	if ErrorToGetListSong != nil {
+		log.Print(ErrorToGetListSong)
+		return nil, ErrorToGetListSong
+	}
+	ListSongResponse := []map[string]interface{}{}
+	for _, SongItem := range ListSong {
+		log.Print(SongItem.Status)
+		if SongItem.Status == "public" {
+			SongResponseItem := SongEntityMapToSongResponse(SongItem)
+			Aritst := SongItem.Artist
+			ArtistForSong := []map[string]interface{}{}
+			for _, item := range Aritst {
+				ArtistRes := map[string]interface{}{
+					"id":          item.ID,
+					"name":        item.Name,
+					"description": item.Description,
+				}
+				ArtistForSong = append(ArtistForSong, ArtistRes)
+			}
+			Songs := map[string]interface{}{
+				"SongData": SongResponseItem,
+				"artist":   ArtistForSong,
+			}
+			ListSongResponse = append(ListSongResponse, Songs)
+
+		}
+
+	}
+	return ListSongResponse, nil
+}
+func (songServe *SongService) GetSongByUserId(userid string) ([]response.SongResponseAlbum, error) {
+	UserRepo := songServe.UserRepo
+	User, ErrorToGetUser := UserRepo.FindById(userid)
+	if ErrorToGetUser != nil {
+		log.Print(ErrorToGetUser)
+		return nil, ErrorToGetUser
+	}
+	Song := User.Song
+	response := []response.SongResponseAlbum{}
+	for _, item := range Song {
+		response = append(response, SongEntityMapToSongResponseAlbum(item, repository.CountryRepo))
+	}
+	return response, nil
 }
 func (songServe *SongService) GetSongById(Id int) (response.SongResponseAlbum, error) {
 	SongRepos := songServe.SongRepo
@@ -556,225 +531,6 @@ func (songServe *SongService) DownLoadSong(Id int) (SongDownload, error) {
 	}, nil
 }
 
-type HistoryPair struct {
-	IdType int
-	Amount int
-}
-type HistoryLike struct {
-	IdType int
-	Amount int
-}
-
-func TrackSongForUser(user entity.User) ([]HistoryPair, []HistoryLike, error) {
-	SongUserListen := user.ListenHistory
-	SongUserLike := user.Song
-
-	TrackSongListen := make(map[int]int)
-	TrackSongLike := make(map[int]int)
-	ArrayHistory := []HistoryPair{}
-	ArraySongLike := []HistoryLike{}
-	now := time.Now()
-	beginningOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	sevenDaysAgo := beginningOfToday.AddDate(0, 0, -7)
-	for _, ListenHistoryItem := range SongUserListen {
-		TimeUserListen := ListenHistoryItem.ListenDay
-		if TimeUserListen.Before(sevenDaysAgo) || TimeUserListen.After(now) {
-			continue
-		}
-		Song, ErrorToGetSong := SongServices.SongRepo.GetSongById(ListenHistoryItem.SongId)
-		if ErrorToGetSong != nil {
-			log.Print(ErrorToGetSong)
-			return nil, nil, ErrorToGetSong
-		}
-		SongTypeUser := Song.SongType
-		for _, SongTypeItem := range SongTypeUser {
-			TrackSongListen[SongTypeItem.ID]++
-		}
-	}
-	for IdSongType, value := range TrackSongListen {
-		Check := HistoryPair{
-			IdType: IdSongType,
-			Amount: value,
-		}
-		ArrayHistory = append(ArrayHistory, Check)
-	}
-	sort.Slice(ArrayHistory, func(i, j int) bool {
-		return ArrayHistory[i].Amount > ArrayHistory[j].Amount
-	})
-	for _, SongUserLikeItem := range SongUserLike {
-		SongTypeUser, errorToGetSong := SongServices.SongRepo.GetSongById(SongUserLikeItem.ID)
-		if errorToGetSong != nil {
-			log.Print(errorToGetSong)
-			return nil, nil, errorToGetSong
-		}
-		for _, SongTypeItem := range SongTypeUser.SongType {
-			TrackSongLike[SongTypeItem.ID]++
-		}
-	}
-	for IdSongType, value := range TrackSongLike {
-		Check := HistoryLike{
-			IdType: IdSongType,
-			Amount: value,
-		}
-		ArraySongLike = append(ArraySongLike, Check)
-	}
-	fmt.Print(ArraySongLike)
-	sort.Slice(ArraySongLike, func(i, j int) bool {
-		return ArraySongLike[i].Amount > ArraySongLike[j].Amount
-	})
-	return ArrayHistory, ArraySongLike, nil
-
-}
-func GetMax(Limit int, SongLength int) int {
-	if SongLength < Limit {
-		return SongLength
-	}
-	return Limit
-
-}
-func GetTrueResult(Response []response.SongResponse) []response.SongResponse {
-	checktrue := make(map[response.SongResponse]int)
-	result := []response.SongResponse{}
-	for _, value := range Response {
-		checktrue[value]++
-	}
-	for key, _ := range checktrue {
-		result = append(result, key)
-
-	}
-	return result
-
-}
-func (songServe *SongService) GetListSongForUser(userId string) ([]response.SongResponse, error) {
-	UserRepo := songServe.UserRepo
-	SongRepo := songServe.SongRepo
-
-	SongTypeRepo := songServe.SongTypeRepo
-	SongResponse := []response.SongResponse{}
-	UserById, ErrorToGetUser := UserRepo.FindById(userId)
-	if ErrorToGetUser != nil {
-		log.Print(ErrorToGetUser)
-		return nil, ErrorToGetUser
-	}
-	MaxListenIn7Day, MaxLike, ErrorToGet := TrackSongForUser(UserById)
-	if ErrorToGet != nil {
-		return nil, ErrorToGetUser
-	}
-	amountSongType := 0
-	srcSong := rand.NewSource(time.Now().UnixNano())
-	randSong := rand.New(srcSong)
-	if len(MaxListenIn7Day) != 0 {
-		for _, value := range MaxListenIn7Day {
-			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
-			if ErrorToGetType != nil {
-				log.Print(ErrorToGetType)
-				return nil, ErrorToGetType
-			}
-			SongArray := SongType.Song
-			lenCheck := len(SongArray)
-			fmt.Print(SongArray)
-			if amountSongType == 0 {
-				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType == 1 {
-				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType == 2 {
-				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType > 2 {
-				break
-			}
-			amountSongType++
-		}
-		return GetTrueResult(SongResponse), nil
-
-	}
-	if len(MaxLike) != 0 {
-		fmt.Print("check")
-		for _, value := range MaxLike {
-			SongType, ErrorToGetType := SongTypeRepo.GetSongTypeById(value.IdType)
-			if ErrorToGetType != nil {
-				log.Print(ErrorToGetType)
-				return nil, ErrorToGetType
-			}
-			SongArray := SongType.Song
-			lenCheck := len(SongArray)
-			if amountSongType == 0 {
-				for i := 0; i < int(GetMax(FIRST_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType == 1 {
-				for i := 0; i < int(GetMax(SECOND_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType == 2 {
-				for i := 0; i < int(GetMax(THIRD_SONG, len(SongArray))); i++ {
-					if lenCheck <= 5 {
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[i]))
-					}
-					if lenCheck > 5 {
-						randomNumber := randSong.Intn(lenCheck)
-						SongResponse = append(SongResponse, SongEntityMapToSongResponse(SongArray[randomNumber]))
-					}
-				}
-			}
-			if amountSongType > 2 {
-				break
-			}
-			amountSongType++
-		}
-		return GetTrueResult(SongResponse), nil
-	}
-	fmt.Print("check2")
-	Song, err := SongRepo.FindAll()
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-	for _, Song := range Song {
-		SongResponse = append(SongResponse, SongEntityMapToSongResponse(Song))
-	}
-	return SongResponse, nil
-}
 func (songServe *SongService) UserLikeSong(SongId int, UserId string) (MessageResponse, error) {
 	UserRepo := songServe.UserRepo
 	SongRepo := songServe.SongRepo
@@ -809,6 +565,49 @@ func (songServe *SongService) UserLikeSong(SongId int, UserId string) (MessageRe
 			Status:  "failed",
 		}, ErrorToUpdate
 	}
+	return MessageResponse{
+		Message: "Update Success",
+		Status:  "Success",
+	}, nil
+}
+func (songServe *SongService) UserDislikeSong(songID int, userID string) (MessageResponse, error) {
+	userRepo := songServe.UserRepo
+	songRepo := songServe.SongRepo
+	user, errUser := userRepo.FindById(userID)
+	song, errSong := songRepo.GetSongById(songID)
+
+	if errUser != nil || errSong != nil {
+		return MessageResponse{Message: "fail", Status: "failed"},
+			fmt.Errorf("get user err: %v | get song err: %v", errUser, errSong)
+	}
+	found := false
+	newList := make([]entity.Song, 0, len(user.Song))
+	for _, s := range user.Song {
+		if s.ID == songID {
+			found = true
+			continue
+		}
+		newList = append(newList, s)
+	}
+	if !found {
+		return MessageResponse{
+			Message: "User chưa like bài hát này",
+			Status:  "failed",
+		}, nil
+	}
+	user.Song = newList
+
+	if song.LikeAmount > 0 {
+		song.LikeAmount--
+	}
+
+	if err := songRepo.UpdateSong(song, song.ID); err != nil {
+		return MessageResponse{Message: "fail", Status: "failed"}, err
+	}
+	if err := userRepo.DeleteSongLike(userID, songID); err != nil {
+		return MessageResponse{Message: "fail", Status: "failed"}, err
+	}
+
 	return MessageResponse{
 		Message: "Update Success",
 		Status:  "Success",
@@ -889,20 +688,102 @@ func (SongServe *SongService) GetSongForUser(userId string) ([]response.SongResp
 	}
 	return SongRecommendId, nil
 }
+func (SongServe *SongService) GetSongForUserV2(userID string, topK int, topN int) ([]response.SongResponse, error) {
+	user, err := SongServe.UserRepo.FindById(userID)
+	if err != nil {
+		return nil, err
+	}
+	type SongSimilarity struct {
+		ID         int
+		Score      float64
+		Count      int
+		Similarity float64
+	}
+
+	songVectors, _, err := helper.GetVectorFeatureForSong()
+	if err != nil {
+		return nil, err
+	}
+
+	listened := map[int]bool{}
+	for _, item := range user.ListenHistory {
+		listened[item.SongId] = true
+	}
+	scoreMap := map[int]*SongSimilarity{}
+	cutoff := time.Now().AddDate(0, 0, -5)
+	for _, item := range user.ListenHistory {
+		if item.ListenDay.Before(cutoff) {
+			continue
+		}
+		sourceID := item.SongId
+		sourceVec := songVectors[sourceID]
+
+		candidates := []SongSimilarity{}
+		for songID, targetVec := range songVectors {
+			// if songID == sourceID || listened[songID] {
+			// 	continue
+			// }
+			sim := helper.GetCosineSimilar(sourceVec, targetVec)
+			if sim > 0 {
+				candidates = append(candidates, SongSimilarity{ID: songID, Similarity: sim})
+			}
+		}
+
+		sort.Slice(candidates, func(i, j int) bool {
+			return candidates[i].Similarity > candidates[j].Similarity
+		})
+
+		for i := 0; i < topK && i < len(candidates); i++ {
+			songID := candidates[i].ID
+			if _, ok := scoreMap[songID]; !ok {
+				scoreMap[songID] = &SongSimilarity{ID: songID}
+			}
+			scoreMap[songID].Count++
+			scoreMap[songID].Similarity += candidates[i].Similarity
+		}
+	}
+
+	final := []SongSimilarity{}
+	for _, sim := range scoreMap {
+		final = append(final, *sim)
+	}
+
+	sort.Slice(final, func(i, j int) bool {
+		if final[i].Count == final[j].Count {
+			return final[i].Similarity > final[j].Similarity
+		}
+		return final[i].Count > final[j].Count
+	})
+
+	results := []response.SongResponse{}
+	for i := 0; i < topN && i < len(final); i++ {
+		song, err := SongServe.SongRepo.GetSongById(final[i].ID)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+		results = append(results, SongEntityMapToSongResponse(song))
+	}
+	if len(results) == 0 {
+		log.Print("sss")
+		return SongServe.GetBookTopRange("month"), nil
+	}
+	log.Print(len(results))
+
+	return results, nil
+}
 func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongResponse, error) {
 	type SongSimilarity struct {
 		ID         int
 		Similarity float64
 	}
 
-	// Lấy toàn bộ vector đặc trưng bài hát và thẻ đặc trưng
 	vectorFeatureSong, featureTags, err := helper.GetVectorFeatureForSong()
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
 
-	// Lấy vector đặc trưng của bài hát đầu vào
 	vectorTargetSong, err := helper.GetVectorFeatureForUser(songId, featureTags)
 	if err != nil {
 		log.Print(err)
@@ -910,8 +791,6 @@ func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongRespon
 	}
 
 	similarityMap := map[int]float64{}
-
-	// So sánh với tất cả các bài hát khác
 	for id, vector := range vectorFeatureSong {
 		if id == songId {
 			continue // bỏ qua chính nó
@@ -919,8 +798,6 @@ func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongRespon
 		score := helper.GetCosineSimilar(vectorTargetSong, vector)
 		similarityMap[id] = score
 	}
-
-	// Chuyển sang slice và sort
 	similarities := []SongSimilarity{}
 	for id, score := range similarityMap {
 		similarities = append(similarities, SongSimilarity{
@@ -931,9 +808,7 @@ func (SongServe *SongService) GetSimilarSongs(songId int) ([]response.SongRespon
 	sort.Slice(similarities, func(i, j int) bool {
 		return similarities[i].Similarity > similarities[j].Similarity
 	})
-
-	// Trả về top N bài hát tương tự
-	topN := 5
+	topN := 7
 	result := []response.SongResponse{}
 	for i := 0; i < topN && i < len(similarities); i++ {
 		songEntity, err := SongServe.SongRepo.GetSongById(similarities[i].ID)
